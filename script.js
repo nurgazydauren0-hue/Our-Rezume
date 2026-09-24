@@ -28,17 +28,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
-/* ============================================================
-   ЗАДАНИЕ 1. Работа с элементами DOM
-   ЗАДАНИЕ 2. Управление классами элементов
-   ============================================================ */
+
 document.addEventListener('DOMContentLoaded', () => {
 
-    /* --------------------------------------------------------
-       ЗАДАНИЕ 1, пункт 1
-       Найти элемент по id="welcome-title" (изначальный текст —
-       «Резюме») и по клику изменить его текст на «Сәлем, әлем!»
-    -------------------------------------------------------- */
     const welcomeTitle = document.getElementById('welcome-title');
     if (welcomeTitle) {
         welcomeTitle.addEventListener('click', () => {
@@ -46,11 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /* --------------------------------------------------------
-       ЗАДАНИЕ 1, пункт 2
-       Создать новый <div> с классом "new-div" и текстом
-       «Мен жаңа элементпін», добавить его в конец <body>
-    -------------------------------------------------------- */
     const addNewDivBtn = document.getElementById('add-new-div-btn');
     if (addNewDivBtn) {
         addNewDivBtn.addEventListener('click', () => {
@@ -66,11 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /* --------------------------------------------------------
-       ЗАДАНИЕ 1, пункт 3
-       Найти элемент с классом "old-element" и по клику
-       полностью удалить его из DOM
-    -------------------------------------------------------- */
     const oldElement = document.querySelector('.old-element');
     if (oldElement) {
         oldElement.addEventListener('click', () => {
@@ -78,12 +60,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /* --------------------------------------------------------
-       ЗАДАНИЕ 1, пункт 4
-       Создать элемент <p> с текстом «Бұл ауыспалы абзац»,
-       добавить его на страницу и повесить обработчик клика:
-       при нажатии меняются color и font-size текста
-    -------------------------------------------------------- */
     const changeableParagraph = document.createElement('p');
     changeableParagraph.textContent = 'Это меняемый абзац';
 
@@ -91,29 +67,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (paragraphContainer) {
         paragraphContainer.appendChild(changeableParagraph);
     } else {
-        // если контейнера нет на странице — добавляем в конец body
         document.body.appendChild(changeableParagraph);
     }
 
-    // Обработчик клика: переключаем (toggle) изменённый вид туда-обратно
     changeableParagraph.addEventListener('click', () => {
         changeableParagraph.classList.toggle('paragraph-changed');
     });
-
-
-    /* ============================================================
-       ЗАДАНИЕ 2. Управление классами элементов
-       ============================================================ */
 
     const demoElement = document.getElementById('demo-element');
     const classListOutput = document.getElementById('class-list-output');
     const toggleClassBtn = document.getElementById('toggle-class-btn');
 
-    /* --------------------------------------------------------
-       ЗАДАНИЕ 2, пункт 2
-       Вывести список всех CSS-классов элемента в console.log
-       и в отдельный тег <p> рядом на странице
-    -------------------------------------------------------- */
     function printClassList() {
         const classesArray = Array.from(demoElement.classList);
         console.log('Классы элемента demo-element:', classesArray);
@@ -121,19 +85,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (demoElement && classListOutput) {
-        printClassList(); // показать список классов сразу при загрузке
+        printClassList();
     }
 
-    /* --------------------------------------------------------
-       ЗАДАНИЕ 2, пункт 1
-       Реализовать переключение класса "active":
-       classList.toggle сам добавляет класс, если его нет,
-       и удаляет, если он уже есть
-    -------------------------------------------------------- */
     if (toggleClassBtn && demoElement) {
         toggleClassBtn.addEventListener('click', () => {
             demoElement.classList.toggle('active');
-            printClassList(); // обновить вывод списка классов после переключения
+            printClassList();
         });
     }
 });

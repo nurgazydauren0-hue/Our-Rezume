@@ -215,7 +215,6 @@ body {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
 }
-/* --- Демо-задания (DOM) --- */
 .demo-item {
     background-color: #0f172a;
     border: 1px solid #334155;
