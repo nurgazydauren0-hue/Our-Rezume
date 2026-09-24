@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Резюме | Даурен</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="logo" data-tab="home">Даурен<span>.dev</span></div>
+        <nav class="nav">
+            <button class="nav-btn active" data-tab="home">Главная</button>
+            <button class="nav-btn" data-tab="about">Обо мне</button>
+            <button class="nav-btn" data-tab="projects">Проекты и Навыки</button>
+            <button class="nav-btn" data-tab="experience">Опыт</button>
+            <button class="nav-btn" data-tab="contacts">Контакты</button>
+            <button class="nav-btn" data-tab="task1">Задание 1</button>
+            <button class="nav-btn" data-tab="task2">Задание 2</button>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section id="home" class="tab-content active">
+            <div class="hero">
+                <div class="profile-avatar">
+<img src="https://avatars.mds.yandex.net/i?id=311f7efb60c8881a9170b7646f2340b0ced7accc-10869844-images-thumbs&n=13" alt="Фото Даурена">                </div>
+                <h1>Привет! Я Даурен 👋</h1>
+                <p class="subtitle">Студент Computer Science & Web Developer</p>
+                
+                <div class="cards-grid">
+                    <div class="card nav-card" data-tab="about">
+                        <div class="card-icon">👤</div>
+                        <h3>Подробнее обо мне</h3>
+                        <p>Информация об образовании, целях и ключевых навыках.</p>
+                        <span class="card-link">Перейти во вкладку →</span>
+                    </div>
+
+                    <div class="card nav-card" data-tab="projects">
+                        <div class="card-icon">💻</div>
+                        <h3>Мои проекты</h3>
+                        <p>Обзор разработок, стека технологий и учебного опыта.</p>
+                        <span class="card-link">Перейти во вкладку →</span>
+                    </div>
+
+                    <div class="card nav-card" data-tab="experience">
+                        <div class="card-icon">📋</div>
+                        <h3>Опыт</h3>
+                        <p>Учебная практика, стажировки и полученный опыт.</p>
+                        <span class="card-link">Перейти во вкладку →</span>
+                    </div>
+
+                    <div class="card nav-card" data-tab="contacts">
+                        <div class="card-icon">✉️</div>
+                        <h3>Контакты</h3>
+                        <p>Как со мной связаться: почта, соцсети, мессенджеры.</p>
+                        <span class="card-link">Перейти во вкладку →</span>
+                    </div>
+
+                    <div class="card nav-card" data-tab="task1">
+                        <div class="card-icon">🧩</div>
+                        <h3>Задание 1</h3>
+                        <p>Работа с элементами DOM: создание, удаление и изменение элементов.</p>
+                        <span class="card-link">Перейти во вкладку →</span>
+                    </div>
+
+                    <div class="card nav-card" data-tab="task2">
+                        <div class="card-icon">🎯</div>
+                        <h3>Задание 2</h3>
+                        <p>Управление классами элементов: toggle и вывод списка классов.</p>
+                        <span class="card-link">Перейти во вкладку →</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="about" class="tab-content">
+            <div class="page-header">
+                <h2>Обо мне</h2>
+                <button class="back-btn" data-tab="home">← На главную</button>
+            </div>
+            <hr class="divider">
+            <div class="content-block">
+                <h3>Образование и специализация</h3>
+                <p>Я обучаюсь по специальности Computer Science. Увлекаюсь веб-разработкой, проектированием баз данных и созданием удобных интерфейсов.</p>
+                
+                <h3>Ключевые навыки</h3>
+                <ul>
+                    <li><strong>Frontend:</strong> HTML5, CSS3, JavaScript (ES6+)</li>
+                    <li><strong>Языки программирования:</strong> Java, Python</li>
+                    <li><strong>Базы данных:</strong> SQL, Реляционные СУБД</li>
+                    <li><strong>Инструменты:</strong> Git, GitHub, VS Code</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="projects" class="tab-content">
+            <div class="page-header">
+                <h2>Проекты и Навыки</h2>
+                <button class="back-btn" data-tab="home">← На главную</button>
+            </div>
+            <hr class="divider">
+            <div class="content-block">
+                <h3>Мои учебные проекты</h3>
+                <p>Разработка веб-приложений, баз данных и практических задач.</p>
+            </div>
+        </section>
+
+        <section id="experience" class="tab-content">
+            <div class="page-header">
+                <h2>Опыт</h2>
+                <button class="back-btn" data-tab="home">← На главную</button>
+            </div>
+            <hr class="divider">
+            <div class="content-block">
+                <h3>Учебная практика</h3>
+                <p>Здесь можно описать место прохождения практики, период и чем вы занимались (например: разработка учебного веб-приложения, работа с базой данных, участие в командной разработке).</p>
+
+                <h3>Стажировки / проектная работа</h3>
+                <p>Опишите стажировки или самостоятельные учебные проекты: чему научились, какие задачи решали, какой стек использовали.</p>
+
+                <h3>Достижения</h3>
+                <ul>
+                    <li>Например: участие в хакатоне или олимпиаде по программированию</li>
+                    <li>Например: сертификат о прохождении курса</li>
+                    <li>Например: успешно защищённый учебный проект</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="contacts" class="tab-content">
+            <div class="page-header">
+                <h2>Контакты</h2>
+                <button class="back-btn" data-tab="home">← На главную</button>
+            </div>
+            <hr class="divider">
+            <div class="content-block">
+                <h3>Свяжитесь со мной</h3>
+                <ul>
+                    <li><strong>Email:</strong> <a href="mailto:dauren@example.com">dauren@example.com</a></li>
+                    <li><strong>GitHub:</strong> <a href="https://github.com/your-username" target="_blank" rel="noopener">github.com/your-username</a></li>
+                    <li><strong>LinkedIn:</strong> <a href="https://linkedin.com/in/your-profile" target="_blank" rel="noopener">linkedin.com/in/your-profile</a></li>
+                    <li><strong>Telegram:</strong> <a href="https://t.me/your-username" target="_blank" rel="noopener">@your-username</a></li>
+                </ul>
+            </div>
+        </section>
+        <section id="task1" class="tab-content">
+            <div class="page-header">
+                <h2>Задание 1 — Работа с элементами DOM</h2>
+                <button class="back-btn" data-tab="home">← На главную</button>
+            </div>
+            <hr class="divider">
+
+            <div class="content-block">
+                <div class="demo-item">
+                    <p id="welcome-title">Резюме</p>
+                </div>
+
+                <div class="demo-item">
+                    <div class="old-element">Это старый элемент</div>
+                </div>
+
+                <div class="demo-item" id="changeable-paragraph-container">
+                </div>
+
+                <div class="demo-item">
+                    <button id="add-new-div-btn" class="demo-btn">Добавить элемент</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="task2" class="tab-content">
+            <div class="page-header">
+                <h2>Задание 2 — Управление классами элементов</h2>
+                <button class="back-btn" data-tab="home">← На главную</button>
+            </div>
+            <hr class="divider">
+
+            <div class="content-block">
+                <div class="demo-item">
+                    <div id="demo-element" class="demo-box">Я элемент с классами</div>
+                    <button id="toggle-class-btn" class="demo-btn">Переключить класс "active" (toggle)</button>
+                    <p id="class-list-output" class="demo-note"></p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
