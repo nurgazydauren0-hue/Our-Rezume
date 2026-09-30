@@ -15,6 +15,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 2rem;
     padding: 1.5rem 10%;
     background-color: #0f172a;
     border-bottom: 1px solid #1e293b;
@@ -24,6 +25,8 @@ body {
     font-size: 1.5rem;
     font-weight: 700;
     cursor: pointer;
+    margin-right: auto;
+    flex-shrink: 0;
 }
 
 .logo span {
