@@ -17,6 +17,8 @@
             <button class="nav-btn" data-tab="contacts">Контакты</button>
             <button class="nav-btn" data-tab="task1">Задание 1</button>
             <button class="nav-btn" data-tab="task2">Задание 2</button>
+            <button class="nav-btn" data-tab="task3">Задание 3</button>
+            <button class="nav-btn" data-tab="task4">Задание 4</button>
         </nav>
     </header>
 
@@ -68,6 +70,20 @@
                         <div class="card-icon">🎯</div>
                         <h3>Задание 2</h3>
                         <p>Управление классами элементов: toggle и вывод списка классов.</p>
+                        <span class="card-link">Перейти во вкладку →</span>
+                    </div>
+
+                    <div class="card nav-card" data-tab="task3">
+                        <div class="card-icon">📊</div>
+                        <h3>Задание 3</h3>
+                        <p>Генерация таблицы по размерам, интерактивные ячейки и счётчик.</p>
+                        <span class="card-link">Перейти во вкладку →</span>
+                    </div>
+
+                    <div class="card nav-card" data-tab="task4">
+                        <div class="card-icon">🌙</div>
+                        <h3>Задание 4</h3>
+                        <p>Переключатель светлой и тёмной темы оформления сайта.</p>
                         <span class="card-link">Перейти во вкладку →</span>
                     </div>
                 </div>
@@ -182,6 +198,43 @@
                     <button id="toggle-class-btn" class="demo-btn">Переключить класс "active" (toggle)</button>
                     <p id="class-list-output" class="demo-note"></p>
                 </div>
+            </div>
+        </section>
+
+        <section id="task3" class="tab-content">
+            <div class="page-header">
+                <h2>Задание 3 — Таблица по размерам пользователя</h2>
+                <button class="back-btn" data-tab="home">← На главную</button>
+            </div>
+            <hr class="divider">
+
+            <div class="content-block">
+                <div class="table-controls">
+                    <label for="table-rows-input">Количество строк</label>
+                    <input type="number" id="table-rows-input" min="1" value="3">
+
+                    <label for="table-cols-input">Количество столбцов</label>
+                    <input type="number" id="table-cols-input" min="1" value="3">
+
+                    <button id="generate-table-btn" class="demo-btn">Создать таблицу</button>
+                </div>
+
+                <p id="colored-count-output" class="demo-note">Закрашено ячеек: 0</p>
+
+                <div id="table-container"></div>
+            </div>
+        </section>
+
+        <section id="task4" class="tab-content">
+            <div class="page-header">
+                <h2>Задание 4 — Переключатель тёмной темы</h2>
+                <button class="back-btn" data-tab="home">← На главную</button>
+            </div>
+            <hr class="divider">
+
+            <div class="content-block">
+                <button id="theme-toggle-btn" class="demo-btn">🌙 Тёмная тема</button>
+                <p class="demo-note">Переключите тему — изменится фон, текст и стили элементов по всему сайту.</p>
             </div>
         </section>
     </main>
