@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyTheme(isDark) {
         document.body.classList.toggle('light-theme', !isDark);
         if (themeToggleBtn) {
-            themeToggleBtn.textContent = isDark ? '☀️ Светлая тема' : '🌙 Тёмная тема';
+            themeToggleBtn.textContent = isDark ? 'Светлая тема☀️' : 'Тёмная тема🌙';
         }
     }
 
