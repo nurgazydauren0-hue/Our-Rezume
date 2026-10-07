@@ -406,3 +406,17 @@ body.light-theme .generated-table td {
 #home .card {
     text-align: center;
 }
+
+/* ============================================================
+   Главная: две аватарки (Dauren и Amina) рядом
+   ============================================================ */
+.avatars {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.avatars .profile-avatar {
+    margin: 0;
+}
