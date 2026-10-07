@@ -412,3 +412,58 @@ body.light-theme .generated-table td {
 .avatars .profile-avatar {
     margin: 0;
 }
+
+/* ============================================================
+   Светлая тема: исправления подсветки при наведении и цветов
+   ============================================================ */
+body.light-theme .back-btn:hover {
+    background-color: #e0f2fe;
+    border-color: #38bdf8;
+    color: #0284c7;
+}
+
+body.light-theme .card:hover {
+    border-color: #38bdf8;
+}
+
+.generated-table td:not(.cell-colored):hover {
+    background-color: rgba(56, 189, 248, 0.25);
+    border-color: #38bdf8;
+}
+
+body.light-theme .generated-table td:not(.cell-colored):hover {
+    background-color: #bae6fd;
+    border-color: #38bdf8;
+}
+
+body.light-theme .demo-box {
+    background-color: #ffffff;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+body.light-theme .demo-box.active {
+    background-color: #38bdf8;
+    border-color: #38bdf8;
+    color: #0f172a;
+}
+
+body.light-theme .old-element {
+    background-color: #ef4444;
+    border-color: #dc2626;
+    color: #ffffff;
+}
+
+body.light-theme .new-div {
+    background-color: #e0f2fe;
+    border-color: #38bdf8;
+    color: #0f172a;
+}
+
+body.light-theme #changeable-paragraph-container p {
+    color: #0f172a;
+}
+
+body.light-theme #changeable-paragraph-container p.paragraph-changed {
+    color: #0284c7;
+}
