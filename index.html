@@ -19,6 +19,7 @@
             <button class="nav-btn" data-tab="task2">Задание 2</button>
             <button class="nav-btn" data-tab="task3">Задание 3</button>
             <button class="nav-btn" data-tab="task4">Задание 4</button>
+            <button class="nav-btn" data-tab="api">API</button>
         </nav>
     </header>
 
@@ -90,6 +91,13 @@
                         <div class="card-icon">🌙</div>
                         <h3>Задание 4</h3>
                         <p>Переключатель светлой и тёмной темы оформления сайта.</p>
+                        <span class="card-link">Перейти во вкладку →</span>
+                    </div>
+
+                    <div class="card nav-card" data-tab="api">
+                        <div class="card-icon">🔗</div>
+                        <h3>API</h3>
+                        <p>Задачи из REST API: загрузка, добавление, изменение и удаление.</p>
                         <span class="card-link">Перейти во вкладку →</span>
                     </div>
                 </div>
@@ -240,6 +248,62 @@
             <div class="content-block">
                 <button id="theme-toggle-btn" class="demo-btn">Светлая тема☀️</button>
                 <p class="demo-note">Переключите тему — изменится фон, текст и стили элементов по всему сайту.</p>
+            </div>
+        </section>
+
+        <section id="api" class="tab-content">
+            <div class="page-header">
+                <h2>API — Список задач</h2>
+                <button class="back-btn" data-tab="home">← На главную</button>
+            </div>
+            <hr class="divider">
+
+            <div class="content-block api-panel">
+                <div class="api-toolbar">
+                    <button id="api-refresh-btn" class="demo-btn" type="button">Обновить список</button>
+                    <div class="api-filters" role="group" aria-label="Фильтр задач">
+                        <button class="api-filter-btn active" type="button" data-api-filter="all" aria-pressed="true">Все задачи</button>
+                        <button class="api-filter-btn" type="button" data-api-filter="completed" aria-pressed="false">Выполненные</button>
+                        <button class="api-filter-btn" type="button" data-api-filter="pending" aria-pressed="false">Невыполненные</button>
+                    </div>
+                </div>
+
+                <div class="api-stats" aria-label="Статистика задач">
+                    <span>Всего задач: <strong id="api-total-count">0</strong></span>
+                    <span>Выполнено: <strong id="api-completed-count">0</strong></span>
+                    <span>Невыполнено: <strong id="api-pending-count">0</strong></span>
+                </div>
+
+                <form id="api-add-form" class="api-form">
+                    <label for="api-todo-input">Новая задача</label>
+                    <div class="api-form-controls">
+                        <input id="api-todo-input" class="api-input" type="text" placeholder="Введите текст задачи" autocomplete="off" required>
+                        <button id="api-add-btn" class="demo-btn" type="submit">Добавить задачу</button>
+                    </div>
+                </form>
+
+                <p id="api-status" class="api-status" role="status" aria-live="polite">Задачи появятся после загрузки.</p>
+                <p id="api-error" class="api-error" role="alert" hidden></p>
+                <ul id="api-todo-list" class="api-list" aria-label="Список задач"></ul>
+                <p id="api-empty" class="api-empty" hidden>В этом фильтре пока нет задач.</p>
+
+                <p class="api-note">DummyJSON — тестовый API. Изменения видны в текущем списке, но после обновления данные возвращаются к исходным, а добавленные задачи могут исчезнуть.</p>
+
+                <details class="api-reference">
+                    <summary>Справка: HTTP-методы и коды ответа</summary>
+                    <h3>HTTP-методы</h3>
+                    <p><strong>GET</strong> — получить данные. <strong>POST</strong> — создать данные. <strong>PUT</strong> — полностью заменить данные. <strong>PATCH</strong> — частично изменить данные. <strong>DELETE</strong> — удалить данные.</p>
+                    <h3>Категории статусов</h3>
+                    <p><strong>1xx</strong> — информационные сообщения; <strong>2xx</strong> — успешные запросы; <strong>3xx</strong> — перенаправления; <strong>4xx</strong> — ошибка клиента; <strong>5xx</strong> — ошибка сервера.</p>
+                    <h3>Основные коды ответа</h3>
+                    <ul>
+                        <li><strong>200 OK</strong> — запрос успешно выполнен; <strong>201 Created</strong> — объект создан; <strong>204 No Content</strong> — запрос успешный, но данных нет.</li>
+                        <li><strong>301 Moved Permanently</strong> — ресурс навсегда перенесён; <strong>302 Found</strong> — временное перенаправление; <strong>304 Not Modified</strong> — ресурс не изменился.</li>
+                        <li><strong>400 Bad Request</strong> — неправильный запрос; <strong>401 Unauthorized</strong> — нет авторизации; <strong>403 Forbidden</strong> — доступ запрещён; <strong>404 Not Found</strong> — ресурс не найден; <strong>405 Method Not Allowed</strong> — HTTP-метод запрещён; <strong>429 Too Many Requests</strong> — слишком много запросов.</li>
+                        <li><strong>500 Internal Server Error</strong> — ошибка сервера; <strong>502 Bad Gateway</strong> — ошибка при взаимодействии серверов; <strong>503 Service Unavailable</strong> — сервер временно недоступен.</li>
+                    </ul>
+                    <p class="api-note">В Chrome откройте DevTools → Network → Fetch/XHR, затем выполните действия со списком. В колонке Method видны GET, POST, PATCH и DELETE. PUT приведён для справки.</p>
+                </details>
             </div>
         </section>
     </main>
