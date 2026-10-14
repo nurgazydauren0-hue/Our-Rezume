@@ -260,6 +260,10 @@
 
             <div class="content-block api-panel">
                 <div class="api-toolbar">
+                    <div class="api-section-intro">
+                        <h3>Загрузка задач</h3>
+                        <p>Задачи и исполнители из DummyJSON</p>
+                    </div>
                     <button id="api-refresh-btn" class="demo-btn" type="button">Обновить список</button>
                     <div class="api-filters" role="group" aria-label="Фильтр задач">
                         <button class="api-filter-btn active" type="button" data-api-filter="all" aria-pressed="true">Все задачи</button>
@@ -268,24 +272,113 @@
                     </div>
                 </div>
 
-                <div class="api-stats" aria-label="Статистика задач">
-                    <span>Всего задач: <strong id="api-total-count">0</strong></span>
-                    <span>Выполнено: <strong id="api-completed-count">0</strong></span>
-                    <span>Невыполнено: <strong id="api-pending-count">0</strong></span>
+                <div class="api-stats api-main-stats" aria-label="Статистика задач">
+                    <div class="api-stat-card">
+                        <span>Всего</span>
+                        <strong id="api-total-count">0</strong>
+                    </div>
+                    <div class="api-stat-card api-stat-completed">
+                        <span>Выполнено</span>
+                        <strong id="api-completed-count">0</strong>
+                    </div>
+                    <div class="api-stat-card api-stat-pending">
+                        <span>Не выполнено</span>
+                        <strong id="api-pending-count">0</strong>
+                    </div>
                 </div>
 
-                <form id="api-add-form" class="api-form">
-                    <label for="api-todo-input">Новая задача</label>
-                    <div class="api-form-controls">
-                        <input id="api-todo-input" class="api-input" type="text" placeholder="Введите текст задачи" autocomplete="off" required>
-                        <button id="api-add-btn" class="demo-btn" type="submit">Добавить задачу</button>
+                <div class="api-list-heading">
+                    <div class="api-list-title-group">
+                        <h3 id="api-list-title">Все задачи</h3>
+                        <span id="api-visible-count" class="api-visible-count" aria-live="polite">0 / 0</span>
                     </div>
-                </form>
+                    <button id="api-open-add-btn" class="demo-btn" type="button">+ Добавить задачу</button>
+                </div>
+
+                <div class="api-list-controls">
+                    <div class="api-field">
+                        <label for="api-search-input">Поиск по названию</label>
+                        <input id="api-search-input" class="api-input" type="search" placeholder="Введите название задачи" autocomplete="off">
+                    </div>
+                    <div class="api-field">
+                        <label for="api-sort-select">Сортировка через API</label>
+                        <select id="api-sort-select" class="api-input">
+                            <option value="default">Без сортировки</option>
+                            <option value="asc">А–Я</option>
+                            <option value="desc">Я–А</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="api-list-controls api-author-controls">
+                    <div class="api-field">
+                        <label for="api-author-select">Автор / исполнитель</label>
+                        <select id="api-author-select" class="api-input">
+                            <option value="all">Все авторы</option>
+                        </select>
+                    </div>
+                    <button id="api-reset-filters-btn" class="api-cancel-btn api-reset-btn" type="button">Сбросить</button>
+                </div>
+                <p id="api-results-summary" class="api-results-summary" aria-live="polite">Показано 0 задач.</p>
 
                 <p id="api-status" class="api-status" role="status" aria-live="polite">Задачи появятся после загрузки.</p>
                 <p id="api-error" class="api-error" role="alert" hidden></p>
                 <ul id="api-todo-list" class="api-list" aria-label="Список задач"></ul>
                 <p id="api-empty" class="api-empty" hidden>В этом фильтре пока нет задач.</p>
+
+                <dialog id="api-add-dialog" class="api-dialog" aria-labelledby="api-add-title">
+                    <div class="api-dialog-header">
+                        <h2 id="api-add-title">Новая задача</h2>
+                        <button class="api-icon-btn api-dialog-close" type="button" data-close-dialog="api-add-dialog" aria-label="Закрыть окно новой задачи">✕</button>
+                    </div>
+                    <form id="api-add-form" class="api-form">
+                        <div class="api-field">
+                            <label for="api-todo-input">Название задачи</label>
+                            <input id="api-todo-input" class="api-input" type="text" placeholder="Введите текст задачи" autocomplete="off" required>
+                        </div>
+                        <div class="api-field">
+                            <label for="api-assignee-select">Исполнитель</label>
+                            <select id="api-assignee-select" class="api-input" required disabled>
+                                <option value="">Загрузка пользователей…</option>
+                            </select>
+                        </div>
+                        <div class="api-field">
+                            <label for="api-completed-input">Статус</label>
+                            <select id="api-completed-input" class="api-input">
+                                <option value="false">Не выполнено</option>
+                                <option value="true">Выполнено</option>
+                            </select>
+                        </div>
+                        <p id="api-add-error" class="api-error" role="alert" hidden></p>
+                        <button id="api-users-retry-btn" class="api-cancel-btn" type="button" hidden>Повторить загрузку пользователей</button>
+                        <div class="api-dialog-actions">
+                            <button id="api-add-btn" class="demo-btn" type="submit">Добавить задачу</button>
+                            <button class="api-cancel-btn" type="button" data-close-dialog="api-add-dialog">Отмена</button>
+                        </div>
+                    </form>
+                </dialog>
+
+                <dialog id="api-user-dialog" class="api-dialog api-profile-dialog" aria-labelledby="api-user-title">
+                    <div class="api-dialog-header">
+                        <h2 id="api-user-title">Профиль пользователя</h2>
+                        <button class="api-icon-btn api-dialog-close" type="button" data-close-dialog="api-user-dialog" aria-label="Закрыть профиль пользователя">✕</button>
+                    </div>
+                    <p id="api-user-status" class="api-status" role="status" aria-live="polite"></p>
+                    <p id="api-user-error" class="api-error" role="alert" hidden></p>
+                    <button id="api-user-retry-btn" class="api-cancel-btn" type="button" hidden>Повторить загрузку профиля</button>
+                    <div class="api-profile-layout">
+                        <div id="api-user-details"></div>
+                        <div class="api-profile-tasks">
+                            <h3>Задачи пользователя</h3>
+                            <div class="api-stats" aria-label="Статистика задач пользователя">
+                                <span>Всего: <strong id="api-user-total-count">0</strong></span>
+                                <span>Выполнено: <strong id="api-user-completed-count">0</strong></span>
+                                <span>Невыполнено: <strong id="api-user-pending-count">0</strong></span>
+                            </div>
+                            <ul id="api-user-task-list" class="api-list" aria-label="Задачи пользователя"></ul>
+                            <p id="api-user-empty" class="api-empty" hidden>У пользователя пока нет задач.</p>
+                        </div>
+                    </div>
+                </dialog>
 
                 <p class="api-note">DummyJSON — тестовый API. При изменении и удалении всегда отправляются PATCH и DELETE. Новые задачи API не сохраняет, поэтому для них возможен ответ 404; тогда действие применяется локально. После обновления списка изменения сбрасываются.</p>
 
