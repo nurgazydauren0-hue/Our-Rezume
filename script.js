@@ -63,9 +63,13 @@ document.addEventListener('DOMContentLoaded', () => {
         errorMessage.hidden = !message;
     }
 
-    // fetch виден в DevTools → Network. Только ожидаемый 404 локальной
-    // задачи допускает изменение в памяти: остальные ошибки сохраняют данные.
+    // fetch виден в DevTools → Network. Локальные задачи изменяются
+    // и удаляются в памяти без запроса к серверу.
     async function request(path = '', { method = 'GET', body, isLocal = false } = {}) {
+        if (isLocal && (method === 'PATCH' || method === 'DELETE')) {
+            return null;
+        }
+
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 15000);
         try {
@@ -77,7 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify(body)
                 })
             });
-            if (isLocal && response.status === 404) return null;
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             if (response.status === 204) return null;
             return await response.json();
@@ -323,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (!isValidTask(data)) throw new Error('Некорректный ответ API');
             // POST может повторять серверный ID. Уникальный key отличает такие
-            // задачи друг от друга; isLocal разрешает только ожидаемый 404.
+            // задачи друг от друга; isLocal отмечает локальные задачи.
             tasks.unshift({ ...data, key: `local-${++localSequence}`, isLocal: true });
             addInput.value = '';
             filter = 'all';
