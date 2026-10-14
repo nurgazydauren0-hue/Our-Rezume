@@ -63,9 +63,9 @@ document.addEventListener('DOMContentLoaded', () => {
         errorMessage.hidden = !message;
     }
 
-    // fetch виден в DevTools → Network. Только ожидаемый 404 локальной
-    // задачи допускает изменение в памяти: остальные ошибки сохраняют данные.
-    async function request(path = '', { method = 'GET', body, isLocal = false } = {}) {
+    // fetch виден в DevTools → Network. Ошибки сервера обрабатываются
+    // вызывающей функцией; изменения применяются только после успеха.
+    async function request(path = '', { method = 'GET', body } = {}) {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 15000);
         try {
@@ -77,7 +77,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify(body)
                 })
             });
-            if (isLocal && response.status === 404) return null;
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             if (response.status === 204) return null;
             return await response.json();
@@ -265,7 +264,11 @@ document.addEventListener('DOMContentLoaded', () => {
         showError();
         renderTasks();
         try {
-            await request(`/${task.id}`, { method: 'PATCH', body: changes, isLocal: task.isLocal });
+            // POST DummyJSON не сохраняет задачу на сервере. Для isLocal
+            // меняем состояние в памяти, не отправляя заведомо ошибочный PATCH.
+            if (!task.isLocal) {
+                await request(`/${task.id}`, { method: 'PATCH', body: changes });
+            }
             // DummyJSON не хранит предыдущие PATCH: применяем только отправленные
             // поля, чтобы редактирование текста не отменяло изменение checkbox.
             Object.assign(task, changes);
@@ -273,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 editingKey = null;
                 editDraft = '';
             }
-            statusMessage.textContent = 'Изменения сохранены';
+            statusMessage.textContent = task.isLocal ? 'Изменения сохранены локально' : 'Изменения сохранены';
         } catch {
             showError('Не удалось изменить задачу. Попробуйте ещё раз.');
         } finally {
@@ -291,10 +294,13 @@ document.addEventListener('DOMContentLoaded', () => {
         showError();
         renderTasks();
         try {
-            await request(`/${task.id}`, { method: 'DELETE', isLocal: task.isLocal });
+            // На сервере существуют только задачи, полученные через GET.
+            if (!task.isLocal) {
+                await request(`/${task.id}`, { method: 'DELETE' });
+            }
             tasks = tasks.filter(item => item.key !== key);
             if (editingKey === key) editingKey = null;
-            statusMessage.textContent = 'Задача удалена';
+            statusMessage.textContent = task.isLocal ? 'Задача удалена локально' : 'Задача удалена';
         } catch {
             showError('Не удалось удалить задачу. Попробуйте ещё раз.');
         } finally {
@@ -323,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (!isValidTask(data)) throw new Error('Некорректный ответ API');
             // POST может повторять серверный ID. Уникальный key отличает такие
-            // задачи друг от друга; isLocal разрешает только ожидаемый 404.
+            // задачи друг от друга; isLocal отмечает задачу, которой нет на сервере.
             tasks.unshift({ ...data, key: `local-${++localSequence}`, isLocal: true });
             addInput.value = '';
             filter = 'all';

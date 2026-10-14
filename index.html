@@ -287,7 +287,7 @@
                 <ul id="api-todo-list" class="api-list" aria-label="Список задач"></ul>
                 <p id="api-empty" class="api-empty" hidden>В этом фильтре пока нет задач.</p>
 
-                <p class="api-note">DummyJSON — тестовый API. Изменения видны в текущем списке, но после обновления данные возвращаются к исходным, а добавленные задачи могут исчезнуть.</p>
+                <p class="api-note">DummyJSON — тестовый API. Добавленные задачи изменяются и удаляются локально, поскольку API не сохраняет их на сервере. После обновления списка данные возвращаются к исходным, а добавленные задачи исчезают.</p>
 
                 <details class="api-reference">
                     <summary>Справка: HTTP-методы и коды ответа</summary>
@@ -302,7 +302,7 @@
                         <li><strong>400 Bad Request</strong> — неправильный запрос; <strong>401 Unauthorized</strong> — нет авторизации; <strong>403 Forbidden</strong> — доступ запрещён; <strong>404 Not Found</strong> — ресурс не найден; <strong>405 Method Not Allowed</strong> — HTTP-метод запрещён; <strong>429 Too Many Requests</strong> — слишком много запросов.</li>
                         <li><strong>500 Internal Server Error</strong> — ошибка сервера; <strong>502 Bad Gateway</strong> — ошибка при взаимодействии серверов; <strong>503 Service Unavailable</strong> — сервер временно недоступен.</li>
                     </ul>
-                    <p class="api-note">В Chrome откройте DevTools → Network → Fetch/XHR, затем выполните действия со списком. В колонке Method видны GET, POST, PATCH и DELETE. PUT приведён для справки.</p>
+                    <p class="api-note">В Chrome откройте DevTools → Network → Fetch/XHR, затем выполните действия со списком. В колонке Method видны GET, POST, PATCH и DELETE. Для демонстрации PATCH и DELETE используйте задачи, загруженные с сервера; добавленные задачи изменяются и удаляются локально. PUT приведён для справки.</p>
                 </details>
             </div>
         </section>
