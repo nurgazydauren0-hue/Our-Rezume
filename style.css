@@ -1115,8 +1115,21 @@ body.light-theme .api-reference h3 {
     margin-top: 0.65rem;
 }
 
-.api-profile-actions {
-    margin-bottom: 1.25rem;
+.api-profile-filters {
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.api-profile-filters .api-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex: 1 1 auto;
+    justify-content: center;
+}
+
+.api-profile-sort {
+    margin-bottom: 0.8rem;
 }
 
 .api-profile-tasks-heading {

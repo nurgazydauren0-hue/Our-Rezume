@@ -63,6 +63,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const userStatus = document.getElementById('api-user-status');
     const userError = document.getElementById('api-user-error');
     const userRetryButton = document.getElementById('api-user-retry-btn');
+    const userFilterButtons = userDialog.querySelectorAll('[data-api-user-filter]');
+    const userSortSelect = document.getElementById('api-user-sort-select');
+    const userSortError = document.getElementById('api-user-sort-error');
     const authorsDialog = document.getElementById('api-authors-dialog');
     const authorsList = document.getElementById('api-authors-list');
     const authorsSearch = document.getElementById('api-authors-search-input');
@@ -78,8 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const assigneeEditButton = document.getElementById('api-assignee-edit-btn');
     const assigneeDeleteButton = document.getElementById('api-assignee-delete-btn');
     const profileAddTaskButton = document.getElementById('api-profile-add-task-btn');
-    const profileEditUserButton = document.getElementById('api-profile-edit-user-btn');
-    const profileDeleteUserButton = document.getElementById('api-profile-delete-user-btn');
 
     let tasks = [];
     let mainTaskKeys = [];
@@ -108,6 +109,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeUserId = null;
     let profileReturnKey = null;
     let isProfileLoading = false;
+    let profileFilter = 'all';
+    let profileSortOrder = 'default';
+    let profileAppliedSort = 'default';
+    let profileSortVersion = 0;
+    let isProfileSorting = false;
     let usersLoaded = false;
     let usersLoading = false;
     let usersPromise = null;
@@ -180,9 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
         assigneeEditButton.disabled = assigneeDeleteButton.disabled = isAdding || authorBusy
             || !users.has(Number(assigneeSelect.value)) || pendingRequests > 0;
         profileAddTaskButton.disabled = isLoading || pendingRequests > 0 || !usersLoaded;
-        profileEditUserButton.disabled = profileDeleteUserButton.disabled = pendingRequests > 0
-            || isProfileLoading || !usersLoaded || !users.has(activeUserId);
-        document.getElementById('api-profile-add-author-btn').disabled = pendingRequests > 0 || !usersLoaded;
+        userSortSelect.disabled = pendingRequests > 0 || isProfileLoading || isLoading;
         document.getElementById('api-authors-add-btn').disabled = pendingRequests > 0 || !usersLoaded;
         document.getElementById('api-authors-retry-btn').disabled = usersLoading;
         authorForm.querySelectorAll('input, select, button').forEach(control => {
@@ -225,10 +229,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return keys;
     }
 
-    function sortedTasks(items) {
-        if (appliedSort === 'default') return items;
+    function sortedTasks(items, order = appliedSort) {
+        if (order === 'default') return items;
         return [...items].sort((a, b) => a.todo.localeCompare(b.todo, ['ru', 'en'], { sensitivity: 'base' })
-            * (appliedSort === 'asc' ? 1 : -1));
+            * (order === 'asc' ? 1 : -1));
     }
 
     function fullName(user) {
@@ -464,7 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('api-add-title').textContent = task ? 'Изменить задачу' : 'Новая задача';
         addDialog.querySelector('.api-dialog-close').setAttribute('aria-label', 'Закрыть форму задачи');
         addInput.value = task?.todo || '';
-        completedInput.value = String(task?.completed ?? (filter === 'completed'));
+        completedInput.value = String(task?.completed ?? ((context === 'profile' ? profileFilter : filter) === 'completed'));
         const selectedId = task ? task.userId : userId ?? (users.has(Number(authorFilter)) ? Number(authorFilter) : null);
         assigneeSelect.value = users.has(selectedId) ? String(selectedId) : task ? '' : String(users.keys().next().value ?? '');
         if (!addDialog.open) addDialog.showModal();
@@ -514,6 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function openUserProfile(userId, force = false) {
         if (!Number.isInteger(userId) || userId < 1 || deletedUserIds.has(userId)) return;
+        if (!userDialog.open || activeUserId !== userId) resetProfileControls();
         activeUserId = userId;
         if (!userDialog.open) {
             profileReturnKey = document.activeElement?.closest('.api-row')?.dataset.taskKey || null;
@@ -555,6 +560,53 @@ document.addEventListener('DOMContentLoaded', () => {
         userRetryButton.hidden = !errors.length;
         userStatus.textContent = errors.length ? '' : 'Профиль и задачи загружены';
         renderTasks();
+    }
+
+    function resetProfileControls() {
+        profileFilter = 'all';
+        profileSortOrder = 'default';
+        profileAppliedSort = 'default';
+        userSortSelect.value = 'default';
+        profileSortVersion++;
+        isProfileSorting = false;
+        userSortError.hidden = true;
+    }
+
+    async function sortProfileTasks() {
+        const userId = activeUserId;
+        if (userId === null || !userDialog.open || isProfileLoading || isLoading || pendingRequests > 0) return;
+        const version = ++profileSortVersion;
+        const generation = dataGeneration;
+        const requestedSort = profileSortOrder;
+        const isCurrent = () => version === profileSortVersion && generation === dataGeneration
+            && activeUserId === userId && userDialog.open;
+        isProfileSorting = true;
+        userSortError.hidden = true;
+        userStatus.textContent = 'Сортировка задач…';
+        renderTasks();
+        try {
+            // /todos поддерживает sortBy/order. Отбираем задачи пользователя после
+            // наложения локальных изменений, чтобы сохранить новых исполнителей.
+            const path = requestedSort === 'default' ? '?limit=0' : `?limit=0&sortBy=todo&order=${requestedSort}`;
+            const data = await request(path);
+            if (!isCurrent()) return;
+            if (!Array.isArray(data?.todos) || !data.todos.every(isValidTask)) throw new Error('Некорректный ответ API');
+            mergeRemoteTasks(data.todos);
+            profileAppliedSort = requestedSort;
+            userStatus.textContent = requestedSort === 'default' ? 'Сортировка сброшена' : 'Задачи пользователя отсортированы';
+        } catch {
+            if (!isCurrent()) return;
+            profileSortOrder = profileAppliedSort;
+            userSortSelect.value = profileAppliedSort;
+            userSortError.textContent = 'Не удалось отсортировать задачи. Повторите выбор сортировки.';
+            userSortError.hidden = false;
+            userStatus.textContent = '';
+        } finally {
+            if (isCurrent()) {
+                isProfileSorting = false;
+                renderTasks();
+            }
+        }
     }
 
     function createTaskRow(task, context = 'main') {
@@ -650,9 +702,20 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('api-user-total-count').textContent = assigned.length;
             document.getElementById('api-user-completed-count').textContent = done;
             document.getElementById('api-user-pending-count').textContent = assigned.length - done;
-            userList.replaceChildren(...assigned.map(task => createTaskRow(task, 'profile')));
-            userList.setAttribute('aria-busy', String(isProfileLoading));
-            document.getElementById('api-user-empty').hidden = assigned.length > 0 || isProfileLoading;
+            userFilterButtons.forEach(button => {
+                const selected = button.dataset.apiUserFilter === profileFilter;
+                button.classList.toggle('active', selected);
+                button.setAttribute('aria-pressed', String(selected));
+            });
+            const visibleAssigned = sortedTasks(assigned.filter(task => profileFilter === 'all'
+                || (profileFilter === 'completed' ? task.completed : !task.completed)), profileAppliedSort);
+            userList.replaceChildren(...visibleAssigned.map(task => createTaskRow(task, 'profile')));
+            userList.setAttribute('aria-busy', String(isProfileLoading || isProfileSorting));
+            const profileEmpty = document.getElementById('api-user-empty');
+            profileEmpty.hidden = visibleAssigned.length > 0 || isProfileLoading || isProfileSorting;
+            profileEmpty.textContent = profileFilter === 'completed' ? 'У пользователя пока нет выполненных задач.'
+                : profileFilter === 'pending' ? 'У пользователя пока нет невыполненных задач.' : 'У пользователя пока нет задач.';
+            document.getElementById('api-user-results-summary').textContent = `Показано ${visibleAssigned.length} из ${assigned.length} задач.`;
         }
         if (authorsDialog.open) renderAuthors();
         updateControls();
@@ -963,13 +1026,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     openAddButton.addEventListener('click', () => openTaskEditor());
     profileAddTaskButton.addEventListener('click', () => openTaskEditor(null, 'profile', activeUserId));
+    userFilterButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            profileFilter = button.dataset.apiUserFilter;
+            renderTasks();
+        });
+    });
+    userSortSelect.addEventListener('change', () => {
+        profileSortOrder = userSortSelect.value;
+        sortProfileTasks();
+    });
     assigneeSelect.addEventListener('change', updateControls);
     assigneeAddButton.addEventListener('click', () => openAuthorEditor());
     assigneeEditButton.addEventListener('click', () => openAuthorEditor(Number(assigneeSelect.value)));
     assigneeDeleteButton.addEventListener('click', () => openAuthorDelete(Number(assigneeSelect.value)));
-    profileEditUserButton.addEventListener('click', () => openAuthorEditor(activeUserId));
-    profileDeleteUserButton.addEventListener('click', () => openAuthorDelete(activeUserId));
-    document.getElementById('api-profile-add-author-btn').addEventListener('click', () => openAuthorEditor());
     document.getElementById('api-authors-add-btn').addEventListener('click', () => openAuthorEditor());
     document.getElementById('api-open-authors-btn').addEventListener('click', () => {
         if (!authorsDialog.open) authorsDialog.showModal();
@@ -993,7 +1063,7 @@ document.addEventListener('DOMContentLoaded', () => {
     authorEditorDialog.addEventListener('cancel', event => { if (isAuthorSaving) event.preventDefault(); });
     authorDeleteDialog.addEventListener('cancel', event => { if (isAuthorDeleting) event.preventDefault(); });
     function focusParentDialog(fallback = openAddButton) {
-        const parent = addDialog.open ? assigneeSelect : userDialog.open ? profileEditUserButton
+        const parent = addDialog.open ? assigneeSelect : userDialog.open ? profileAddTaskButton
             : authorsDialog.open ? authorsSearch : fallback;
         parent?.focus({ preventScroll: true });
     }
@@ -1019,6 +1089,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     userDialog.addEventListener('close', () => {
         profileLoadVersion++;
+        resetProfileControls();
         isProfileLoading = false;
         activeUserId = null;
         renderTasks();

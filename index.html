@@ -373,11 +373,6 @@
                     <p id="api-user-status" class="api-status" role="status" aria-live="polite"></p>
                     <p id="api-user-error" class="api-error" role="alert" hidden></p>
                     <button id="api-user-retry-btn" class="api-cancel-btn" type="button" hidden>Повторить загрузку профиля</button>
-                    <div class="api-author-actions api-profile-actions" aria-label="Управление автором">
-                        <button id="api-profile-add-author-btn" class="api-edit-btn" type="button">+ Добавить автора</button>
-                        <button id="api-profile-edit-user-btn" class="api-edit-btn" type="button" disabled>Изменить автора</button>
-                        <button id="api-profile-delete-user-btn" class="api-delete-btn" type="button" disabled>Удалить автора</button>
-                    </div>
                     <div class="api-profile-layout">
                         <div id="api-user-details"></div>
                         <div class="api-profile-tasks">
@@ -385,11 +380,21 @@
                                 <h3>Задачи пользователя</h3>
                                 <button id="api-profile-add-task-btn" class="api-edit-btn" type="button" disabled>+ Добавить задачу</button>
                             </div>
-                            <div class="api-stats" aria-label="Статистика задач пользователя">
-                                <span>Всего: <strong id="api-user-total-count">0</strong></span>
-                                <span>Выполнено: <strong id="api-user-completed-count">0</strong></span>
-                                <span>Невыполнено: <strong id="api-user-pending-count">0</strong></span>
+                            <div class="api-stats api-profile-filters" role="group" aria-label="Фильтр задач пользователя">
+                                <button class="api-filter-btn active" type="button" data-api-user-filter="all" aria-pressed="true">Всего: <strong id="api-user-total-count">0</strong></button>
+                                <button class="api-filter-btn" type="button" data-api-user-filter="completed" aria-pressed="false">Выполнено: <strong id="api-user-completed-count">0</strong></button>
+                                <button class="api-filter-btn" type="button" data-api-user-filter="pending" aria-pressed="false">Не выполнено: <strong id="api-user-pending-count">0</strong></button>
                             </div>
+                            <div class="api-field api-profile-sort">
+                                <label for="api-user-sort-select">Сортировка через API</label>
+                                <select id="api-user-sort-select" class="api-input">
+                                    <option value="default">Без сортировки</option>
+                                    <option value="asc">А–Я</option>
+                                    <option value="desc">Я–А</option>
+                                </select>
+                                <p id="api-user-sort-error" class="api-error" role="alert" hidden></p>
+                            </div>
+                            <p id="api-user-results-summary" class="api-results-summary" aria-live="polite"></p>
                             <ul id="api-user-task-list" class="api-list" aria-label="Задачи пользователя"></ul>
                             <p id="api-user-empty" class="api-empty" hidden>У пользователя пока нет задач.</p>
                         </div>

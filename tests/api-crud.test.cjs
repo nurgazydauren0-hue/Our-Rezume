@@ -66,6 +66,8 @@ async function fixture(t) {
     t.after(() => assert.deepEqual(errors, [], 'The page must not throw JavaScript errors'));
     const calls = [];
     const failures = [];
+    const delayedSorts = [];
+    t.after(() => delayedSorts.forEach(delayed => delayed.release()));
     await context.route('**/*', async route => {
         const request = route.request();
         const url = new URL(request.url());
@@ -74,6 +76,13 @@ async function fixture(t) {
         const method = request.method();
         const body = request.postData() ? request.postDataJSON() : undefined;
         calls.push({ method, path: url.pathname, search: url.search, body });
+        const delayed = delayedSorts.find(item => !item.used && method === 'GET'
+            && url.pathname === '/todos' && url.searchParams.get('order') === item.order);
+        if (delayed) {
+            delayed.used = true;
+            delayed.markStarted();
+            await delayed.released;
+        }
         const failureIndex = failures.findIndex(item => item.method === method && item.path === url.pathname);
         if (failureIndex !== -1) {
             const failure = failures.splice(failureIndex, 1)[0];
@@ -123,7 +132,17 @@ async function fixture(t) {
     await page.locator('.nav-btn[data-tab="api"]').click();
     await expect(page.locator('#api-total-count')).toHaveText('3');
     await expect(page.locator('#api-author-select')).toBeEnabled();
-    return { page, calls, failNext: (method, routePath, status = 500) => failures.push({ method, path: routePath, status }) };
+    return {
+        page, calls,
+        failNext: (method, routePath, status = 500) => failures.push({ method, path: routePath, status }),
+        holdNextSort(order) {
+            const delayed = { order, used: false };
+            delayed.started = new Promise(resolve => { delayed.markStarted = resolve; });
+            delayed.released = new Promise(resolve => { delayed.release = resolve; });
+            delayedSorts.push(delayed);
+            return delayed;
+        }
+    };
 }
 
 const mainRow = (page, id) => page.locator(`#api-todo-list .api-row[data-task-key="remote-${id}"]`);
@@ -146,7 +165,7 @@ async function saveAuthor(page) {
 async function openPaisley(page) {
     await mainRow(page, 1).locator('.api-user-chip').click();
     await expect(page.locator('#api-user-dialog')).toBeVisible();
-    await expect(page.locator('#api-profile-edit-user-btn')).toBeEnabled();
+    await expect(page.locator('#api-user-task-list')).toHaveAttribute('aria-busy', 'false');
     await expect(page.locator('#api-user-total-count')).toHaveText('2');
 }
 async function optionValue(page, selector, text) {
@@ -162,10 +181,12 @@ async function saveTask(page) {
 test('author fields and renamed handles stay synchronized after profile GET and API sorting', async t => {
     const { page, calls } = await fixture(t);
     await openPaisley(page);
-    await page.locator('#api-profile-edit-user-btn').click();
+    await profileRow(page, 1).getByRole('button', { name: /Редактировать задачу/ }).click();
+    await page.locator('#api-assignee-edit-btn').click();
     await expect(page.locator('#api-author-first-name')).toHaveValue('Paisley');
     await fillAuthor(page, { firstName: 'Amina', lastName: 'Bell Updated', username: 'amina-updated', email: 'amina@example.kz', age: 31, phone: '+77001234567', 'address.city': 'Qyzylorda', 'company.name': 'Updated Company', 'company.title': 'Engineer', role: 'admin', height: 172.5, weight: 65.2 });
     await saveAuthor(page);
+    await closeDialog(page, 'api-add-dialog');
     await expect(page.locator('#api-user-title')).toHaveText('Amina Bell Updated');
     for (const text of ['@amina-updated', 'amina@example.kz', 'Qyzylorda', 'Updated Company', 'Engineer', '172.5']) await expect(page.locator('#api-user-details')).toContainText(text);
     await expect(profileRow(page, 1).locator('.api-user-chip')).toHaveText('@amina-updated');
@@ -253,14 +274,140 @@ test('profile task CRUD changes assignee and status in both lists', async t => {
     assert(calls.some(call => call.method === 'DELETE' && call.path === '/todos/255'));
 });
 
-test('deleting a profile author keeps tasks editable and does not restore the author on a new GET', async t => {
+test('profile statistic buttons filter tasks and track status changes independently of the main list', async t => {
+    const { page } = await fixture(t);
+    await page.locator('#api-sort-select').selectOption('desc');
+    await expect(page.locator('#api-refresh-btn')).toBeEnabled();
+    await page.locator('[data-api-filter="pending"]').click();
+    await openPaisley(page);
+    const profileFilter = value => page.locator(`[data-api-user-filter="${value}"]`);
+    await expect(page.locator('#api-profile-add-author-btn, #api-profile-edit-user-btn, #api-profile-delete-user-btn')).toHaveCount(0);
+    await expect(profileFilter('all')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#api-user-task-list .api-row')).toHaveCount(2);
+    await profileFilter('completed').click();
+    await expect(profileFilter('completed')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#api-user-task-list .api-row')).toHaveCount(1);
+    await expect(profileRow(page, 107)).toBeVisible();
+    // Clicking changes the filter membership, so the checkbox is removed from the DOM.
+    await profileRow(page, 107).locator('input[type="checkbox"]').click();
+    await expect(page.locator('#api-user-completed-count')).toHaveText('0');
+    await expect(page.locator('#api-user-pending-count')).toHaveText('2');
+    await expect(page.locator('#api-user-task-list .api-row')).toHaveCount(0);
+    await expect(page.locator('#api-user-empty')).toBeVisible();
+    await profileFilter('pending').click();
+    await expect(page.locator('#api-user-task-list .api-row')).toHaveCount(2);
+    await profileRow(page, 1).locator('input[type="checkbox"]').click();
+    await expect(page.locator('#api-user-completed-count')).toHaveText('1');
+    await expect(page.locator('#api-user-pending-count')).toHaveText('1');
+    await expect(page.locator('#api-user-total-count')).toHaveText('2');
+    await expect(page.locator('#api-user-task-list .api-row')).toHaveCount(1);
+    await expect(profileRow(page, 107)).toBeVisible();
+    await page.locator('#api-user-sort-select').selectOption('asc');
+    await expect(page.locator('#api-user-task-list')).toHaveAttribute('aria-busy', 'false');
+    await closeDialog(page, 'api-user-dialog');
+    await expect(page.locator('[data-api-filter="pending"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#api-sort-select')).toHaveValue('desc');
+    await expect(mainRow(page, 1)).toHaveCount(0);
+    await expect(mainRow(page, 107).locator('input[type="checkbox"]')).not.toBeChecked();
+    await mainRow(page, 107).locator('.api-user-chip').click();
+    await expect(page.locator('#api-user-task-list')).toHaveAttribute('aria-busy', 'false');
+    await expect(profileFilter('all')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#api-user-sort-select')).toHaveValue('default');
+    await expect(page.locator('#api-user-task-list .api-row')).toHaveCount(2);
+});
+
+test('profile sorting sends API requests, includes local tasks, and preserves edits and deletions', async t => {
     const { page, calls } = await fixture(t);
     await openPaisley(page);
-    await page.locator('#api-profile-delete-user-btn').click();
+    await profileRow(page, 1).getByRole('button', { name: /Редактировать задачу/ }).click();
+    await page.locator('#api-todo-input').fill('Z Updated kind task');
+    await saveTask(page);
+    await page.locator('#api-profile-add-task-btn').click();
+    await page.locator('#api-todo-input').fill('A Local profile task');
+    await page.locator('#api-completed-input').selectOption('true');
+    await saveTask(page);
+    await expect(page.locator('#api-user-total-count')).toHaveText('3');
+    const mainKeysBeforeSorting = await page.locator('#api-todo-list .api-row').evaluateAll(rows => rows.map(row => row.dataset.taskKey));
+    await page.locator('#api-user-sort-select').selectOption('asc');
+    await expect(page.locator('#api-user-task-list .api-todo-text')).toHaveText([
+        'A Local profile task', remoteTasks[1].todo, 'Z Updated kind task'
+    ]);
+    await expect(page.locator('#api-user-sort-select')).toHaveValue('asc');
+    assert(calls.some(call => call.method === 'GET' && call.path === '/todos'
+        && new URLSearchParams(call.search).get('sortBy') === 'todo'
+        && new URLSearchParams(call.search).get('order') === 'asc'));
+    assert.deepEqual(await page.locator('#api-todo-list .api-row').evaluateAll(rows => rows.map(row => row.dataset.taskKey)), mainKeysBeforeSorting);
+    await profileRow(page, 107).getByRole('button', { name: /Удалить/ }).click();
+    await expect(page.locator('#api-user-total-count')).toHaveText('2');
+    await page.locator('#api-user-sort-select').selectOption('desc');
+    await expect(page.locator('#api-user-task-list .api-todo-text')).toHaveText(['Z Updated kind task', 'A Local profile task']);
+    await expect(profileRow(page, 107)).toHaveCount(0);
+    await expect(page.locator('#api-sort-select')).toHaveValue('default');
+    assert.deepEqual(await page.locator('#api-todo-list .api-row').evaluateAll(rows => rows.map(row => row.dataset.taskKey)), mainKeysBeforeSorting.filter(key => key !== 'remote-107'));
+    await page.locator('[data-api-user-filter="completed"]').click();
+    await expect(page.locator('#api-user-task-list .api-todo-text')).toHaveText(['A Local profile task']);
+    await expect(page.locator('#api-user-completed-count')).toHaveText('1');
+    await expect(page.locator('#api-user-pending-count')).toHaveText('1');
+});
+
+test('profile sort ignores stale responses and recovers from HTTP errors without losing local changes', async t => {
+    const { page, failNext, holdNextSort } = await fixture(t);
+    await openPaisley(page);
+    await profileRow(page, 1).getByRole('button', { name: /Редактировать задачу/ }).click();
+    await page.locator('#api-todo-input').fill('ZZ Persisted text');
+    await page.locator('#api-completed-input').selectOption('true');
+    await saveTask(page);
+    const ascending = holdNextSort('asc');
+    await page.locator('#api-user-sort-select').selectOption('asc');
+    await ascending.started;
+    await page.locator('#api-user-sort-select').selectOption('desc');
+    await expect(page.locator('#api-user-task-list .api-todo-text')).toHaveText(['ZZ Persisted text', remoteTasks[1].todo]);
+    const oldResponse = page.waitForResponse(response => response.url().includes('/todos?')
+        && new URL(response.url()).searchParams.get('order') === 'asc');
+    ascending.release();
+    await (await oldResponse).finished();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await expect(page.locator('#api-user-sort-select')).toHaveValue('desc');
+    await expect(page.locator('#api-user-task-list .api-todo-text')).toHaveText(['ZZ Persisted text', remoteTasks[1].todo]);
+    await expect(profileRow(page, 1).locator('input[type="checkbox"]')).toBeChecked();
+    failNext('GET', '/todos');
+    await page.locator('#api-user-sort-select').selectOption('asc');
+    await expect(page.locator('#api-user-sort-error')).toBeVisible();
+    await expect(page.locator('#api-user-sort-select')).toHaveValue('desc');
+    await expect(page.locator('#api-user-task-list .api-todo-text')).toHaveText(['ZZ Persisted text', remoteTasks[1].todo]);
+    await expect(profileRow(page, 1).locator('input[type="checkbox"]')).toBeChecked();
+    await page.locator('#api-user-sort-select').selectOption('asc');
+    await expect(page.locator('#api-user-task-list .api-todo-text')).toHaveText([remoteTasks[1].todo, 'ZZ Persisted text']);
+    await expect(page.locator('#api-user-sort-error')).not.toBeVisible();
+    const closingRequest = holdNextSort('desc');
+    await page.locator('#api-user-sort-select').selectOption('desc');
+    await closingRequest.started;
+    await closeDialog(page, 'api-user-dialog');
+    await mainRow(page, 2).locator('.api-user-chip').click();
+    await expect(page.locator('#api-user-title')).toHaveText('Emily Johnson');
+    await expect(page.locator('#api-user-task-list')).toHaveAttribute('aria-busy', 'false');
+    const closedResponse = page.waitForResponse(response => response.url().includes('/todos?')
+        && new URL(response.url()).searchParams.get('order') === 'desc');
+    closingRequest.release();
+    await (await closedResponse).finished();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await expect(page.locator('#api-user-title')).toHaveText('Emily Johnson');
+    await expect(page.locator('#api-user-task-list .api-todo-text')).toHaveText([remoteTasks[2].todo]);
+    await expect(page.locator('#api-user-sort-select')).toHaveValue('default');
+    await expect(page.locator('[data-api-user-filter="all"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#api-sort-select')).toHaveValue('default');
+});
+
+test('deleting the assignee from a profile task keeps tasks editable after a new GET', async t => {
+    const { page, calls } = await fixture(t);
+    await openPaisley(page);
+    await profileRow(page, 1).getByRole('button', { name: /Редактировать задачу/ }).click();
+    await page.locator('#api-assignee-delete-btn').click();
     await expect(page.locator('#api-author-delete-dialog')).toBeVisible();
     await expect(page.locator('#api-author-delete-name')).toContainText('Paisley');
     await page.locator('#api-author-delete-confirm-btn').click();
     await expect(page.locator('#api-author-delete-dialog')).not.toBeVisible();
+    await closeDialog(page, 'api-add-dialog');
     if (await page.locator('#api-user-dialog').isVisible()) await closeDialog(page, 'api-user-dialog');
     await expect(page.locator('#api-total-count')).toHaveText('3');
     await expect(mainRow(page, 1)).toContainText('Без исполнителя');
@@ -310,7 +457,8 @@ test('author directory and task form expose author CRUD even when no task exists
 test('failed author and task mutations preserve data and keep forms retryable', async t => {
     const { page, failNext } = await fixture(t);
     await openPaisley(page);
-    await page.locator('#api-profile-edit-user-btn').click();
+    await profileRow(page, 1).getByRole('button', { name: /Редактировать задачу/ }).click();
+    await page.locator('#api-assignee-edit-btn').click();
     await fillAuthor(page, { firstName: 'Must Not Persist' });
     failNext('PATCH', '/users/152');
     await page.locator('#api-author-save-btn').click();
@@ -319,14 +467,13 @@ test('failed author and task mutations preserve data and keep forms retryable', 
     await expect(page.locator('#api-author-save-btn')).toBeEnabled();
     await closeDialog(page, 'api-author-editor-dialog');
     await expect(page.locator('#api-user-title')).toHaveText('Paisley Bell');
-    await page.locator('#api-profile-delete-user-btn').click();
+    await page.locator('#api-assignee-delete-btn').click();
     failNext('DELETE', '/users/152');
     await page.locator('#api-author-delete-confirm-btn').click();
     await expect(page.locator('#api-author-delete-error')).toBeVisible();
     await expect(page.locator('#api-author-delete-confirm-btn')).toBeEnabled();
     await closeDialog(page, 'api-author-delete-dialog');
     await expect(page.locator('#api-user-title')).toHaveText('Paisley Bell');
-    await profileRow(page, 1).getByRole('button', { name: /Редактировать задачу/ }).click();
     await page.locator('#api-todo-input').fill('Must not replace the task');
     failNext('PATCH', '/todos/1');
     await page.locator('#api-add-btn').click();
@@ -411,4 +558,9 @@ test('desktop and mobile light-theme dialogs fit their viewport', async t => {
     await page.locator('#api-open-authors-btn').click();
     await expectNoDialogOverflow('api-authors-dialog');
     await capture('api-authors-mobile-light.png');
+    await closeDialog(page, 'api-authors-dialog');
+    await openPaisley(page);
+    await expectNoDialogOverflow('api-user-dialog');
+    await page.locator('.api-profile-tasks').scrollIntoViewIfNeeded();
+    await capture('api-profile-mobile-light.png');
 });
