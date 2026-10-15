@@ -292,7 +292,10 @@
                         <h3 id="api-list-title">Все задачи</h3>
                         <span id="api-visible-count" class="api-visible-count" aria-live="polite">0 / 0</span>
                     </div>
-                    <button id="api-open-add-btn" class="demo-btn" type="button">+ Добавить задачу</button>
+                    <div class="api-heading-actions">
+                        <button id="api-open-authors-btn" class="api-cancel-btn" type="button">Авторы</button>
+                        <button id="api-open-add-btn" class="demo-btn" type="button">+ Добавить задачу</button>
+                    </div>
                 </div>
 
                 <div class="api-list-controls">
@@ -328,7 +331,7 @@
                 <dialog id="api-add-dialog" class="api-dialog" aria-labelledby="api-add-title">
                     <div class="api-dialog-header">
                         <h2 id="api-add-title">Новая задача</h2>
-                        <button class="api-icon-btn api-dialog-close" type="button" data-close-dialog="api-add-dialog" aria-label="Закрыть окно новой задачи">✕</button>
+                        <button class="api-icon-btn api-dialog-close" type="button" data-close-dialog="api-add-dialog" aria-label="Закрыть форму задачи">✕</button>
                     </div>
                     <form id="api-add-form" class="api-form">
                         <div class="api-field">
@@ -337,9 +340,14 @@
                         </div>
                         <div class="api-field">
                             <label for="api-assignee-select">Исполнитель</label>
-                            <select id="api-assignee-select" class="api-input" required disabled>
+                            <select id="api-assignee-select" class="api-input" disabled>
                                 <option value="">Загрузка пользователей…</option>
                             </select>
+                            <div class="api-author-actions" aria-label="Управление исполнителями">
+                                <button id="api-assignee-add-btn" class="api-edit-btn" type="button">+ Добавить автора</button>
+                                <button id="api-assignee-edit-btn" class="api-edit-btn" type="button" disabled>Изменить автора</button>
+                                <button id="api-assignee-delete-btn" class="api-delete-btn" type="button" disabled>Удалить автора</button>
+                            </div>
                         </div>
                         <div class="api-field">
                             <label for="api-completed-input">Статус</label>
@@ -365,10 +373,18 @@
                     <p id="api-user-status" class="api-status" role="status" aria-live="polite"></p>
                     <p id="api-user-error" class="api-error" role="alert" hidden></p>
                     <button id="api-user-retry-btn" class="api-cancel-btn" type="button" hidden>Повторить загрузку профиля</button>
+                    <div class="api-author-actions api-profile-actions" aria-label="Управление автором">
+                        <button id="api-profile-add-author-btn" class="api-edit-btn" type="button">+ Добавить автора</button>
+                        <button id="api-profile-edit-user-btn" class="api-edit-btn" type="button" disabled>Изменить автора</button>
+                        <button id="api-profile-delete-user-btn" class="api-delete-btn" type="button" disabled>Удалить автора</button>
+                    </div>
                     <div class="api-profile-layout">
                         <div id="api-user-details"></div>
                         <div class="api-profile-tasks">
-                            <h3>Задачи пользователя</h3>
+                            <div class="api-profile-tasks-heading">
+                                <h3>Задачи пользователя</h3>
+                                <button id="api-profile-add-task-btn" class="api-edit-btn" type="button" disabled>+ Добавить задачу</button>
+                            </div>
                             <div class="api-stats" aria-label="Статистика задач пользователя">
                                 <span>Всего: <strong id="api-user-total-count">0</strong></span>
                                 <span>Выполнено: <strong id="api-user-completed-count">0</strong></span>
@@ -380,7 +396,155 @@
                     </div>
                 </dialog>
 
-                <p class="api-note">DummyJSON — тестовый API. При изменении и удалении всегда отправляются PATCH и DELETE. Новые задачи API не сохраняет, поэтому для них возможен ответ 404; тогда действие применяется локально. После обновления списка изменения сбрасываются.</p>
+                <dialog id="api-authors-dialog" class="api-dialog api-authors-dialog" aria-labelledby="api-authors-title">
+                    <div class="api-dialog-header">
+                        <h2 id="api-authors-title">Авторы и исполнители</h2>
+                        <button class="api-icon-btn api-dialog-close" type="button" data-close-dialog="api-authors-dialog" aria-label="Закрыть список авторов">✕</button>
+                    </div>
+                    <div class="api-authors-toolbar">
+                        <div class="api-field">
+                            <label for="api-authors-search-input">Поиск автора</label>
+                            <input id="api-authors-search-input" class="api-input" type="search" placeholder="Имя, фамилия или username" autocomplete="off">
+                        </div>
+                        <button id="api-authors-add-btn" class="demo-btn" type="button">+ Добавить автора</button>
+                    </div>
+                    <p id="api-authors-status" class="api-status" role="status" aria-live="polite"></p>
+                    <p id="api-authors-error" class="api-error" role="alert" hidden></p>
+                    <button id="api-authors-retry-btn" class="api-cancel-btn" type="button" hidden>Повторить загрузку авторов</button>
+                    <ul id="api-authors-list" class="api-authors-list" aria-label="Список авторов"></ul>
+                    <p id="api-authors-empty" class="api-empty" hidden>Авторы не найдены.</p>
+                </dialog>
+
+                <dialog id="api-author-editor-dialog" class="api-dialog api-author-editor-dialog" aria-labelledby="api-author-editor-title">
+                    <div class="api-dialog-header">
+                        <h2 id="api-author-editor-title">Новый автор</h2>
+                        <button class="api-icon-btn api-dialog-close" type="button" data-close-dialog="api-author-editor-dialog" aria-label="Закрыть редактор автора">✕</button>
+                    </div>
+                    <form id="api-author-form" class="api-form api-author-form">
+                        <p class="api-form-note api-form-full">Заполните имя, фамилию и username. Остальные поля можно оставить пустыми.</p>
+                        <div class="api-field">
+                            <label for="api-author-first-name">Имя *</label>
+                            <input id="api-author-first-name" class="api-input" name="firstName" type="text" autocomplete="given-name" required>
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-last-name">Фамилия *</label>
+                            <input id="api-author-last-name" class="api-input" name="lastName" type="text" autocomplete="family-name" required>
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-username">Username *</label>
+                            <input id="api-author-username" class="api-input" name="username" type="text" autocomplete="off" placeholder="Например, paisleyf" required>
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-email">Email</label>
+                            <input id="api-author-email" class="api-input" name="email" type="email" autocomplete="email">
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-phone">Телефон</label>
+                            <input id="api-author-phone" class="api-input" name="phone" type="tel" autocomplete="tel">
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-age">Возраст</label>
+                            <input id="api-author-age" class="api-input" name="age" type="number" min="0" max="150" step="1">
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-gender">Пол</label>
+                            <select id="api-author-gender" class="api-input" name="gender">
+                                <option value="">Не указан</option>
+                                <option value="female">Женский</option>
+                                <option value="male">Мужской</option>
+                                <option value="other">Другой</option>
+                            </select>
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-birth-date">Дата рождения</label>
+                            <input id="api-author-birth-date" class="api-input" name="birthDate" type="date" autocomplete="bday">
+                        </div>
+                        <div class="api-field api-form-full">
+                            <label for="api-author-image">Ссылка на аватар</label>
+                            <input id="api-author-image" class="api-input" name="image" type="url" placeholder="https://example.com/avatar.png">
+                        </div>
+                        <h3 class="api-form-section-title api-form-full">Адрес</h3>
+                        <div class="api-field api-form-full">
+                            <label for="api-author-address-address">Улица и дом</label>
+                            <input id="api-author-address-address" class="api-input" name="address.address" type="text" autocomplete="street-address">
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-address-city">Город</label>
+                            <input id="api-author-address-city" class="api-input" name="address.city" type="text" autocomplete="address-level2">
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-address-state">Область / штат</label>
+                            <input id="api-author-address-state" class="api-input" name="address.state" type="text" autocomplete="address-level1">
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-address-country">Страна</label>
+                            <input id="api-author-address-country" class="api-input" name="address.country" type="text" autocomplete="country-name">
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-address-postal-code">Индекс</label>
+                            <input id="api-author-address-postal-code" class="api-input" name="address.postalCode" type="text" autocomplete="postal-code">
+                        </div>
+                        <h3 class="api-form-section-title api-form-full">Работа и образование</h3>
+                        <div class="api-field">
+                            <label for="api-author-company-name">Компания</label>
+                            <input id="api-author-company-name" class="api-input" name="company.name" type="text" autocomplete="organization">
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-company-department">Отдел</label>
+                            <input id="api-author-company-department" class="api-input" name="company.department" type="text">
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-company-title">Должность</label>
+                            <input id="api-author-company-title" class="api-input" name="company.title" type="text" autocomplete="organization-title">
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-university">Университет</label>
+                            <input id="api-author-university" class="api-input" name="university" type="text">
+                        </div>
+                        <h3 class="api-form-section-title api-form-full">Дополнительные данные</h3>
+                        <div class="api-field">
+                            <label for="api-author-role">Роль</label>
+                            <select id="api-author-role" class="api-input" name="role">
+                                <option value="">Не указана</option>
+                                <option value="user">Пользователь (user)</option>
+                                <option value="moderator">Модератор (moderator)</option>
+                                <option value="admin">Администратор (admin)</option>
+                            </select>
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-blood-group">Группа крови</label>
+                            <input id="api-author-blood-group" class="api-input" name="bloodGroup" type="text" placeholder="Например, O+">
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-height">Рост, см</label>
+                            <input id="api-author-height" class="api-input" name="height" type="number" min="0" max="300" step="0.01">
+                        </div>
+                        <div class="api-field">
+                            <label for="api-author-weight">Вес, кг</label>
+                            <input id="api-author-weight" class="api-input" name="weight" type="number" min="0" max="1000" step="0.01">
+                        </div>
+                        <p id="api-author-error" class="api-error api-form-full" role="alert" hidden></p>
+                        <div class="api-dialog-actions api-form-full">
+                            <button id="api-author-save-btn" class="demo-btn" type="submit">Добавить автора</button>
+                            <button class="api-cancel-btn" type="button" data-close-dialog="api-author-editor-dialog">Отмена</button>
+                        </div>
+                    </form>
+                </dialog>
+
+                <dialog id="api-author-delete-dialog" class="api-dialog" aria-labelledby="api-author-delete-title">
+                    <div class="api-dialog-header">
+                        <h2 id="api-author-delete-title">Удалить автора?</h2>
+                        <button class="api-icon-btn api-dialog-close" type="button" data-close-dialog="api-author-delete-dialog" aria-label="Отменить удаление автора">✕</button>
+                    </div>
+                    <p class="api-delete-description">Автор <strong id="api-author-delete-name"></strong> будет удалён из списка исполнителей. Его задачи сохранятся без исполнителя.</p>
+                    <p id="api-author-delete-error" class="api-error" role="alert" hidden></p>
+                    <div class="api-dialog-actions">
+                        <button id="api-author-delete-confirm-btn" class="api-delete-btn" type="button">Удалить автора</button>
+                        <button class="api-cancel-btn" type="button" data-close-dialog="api-author-delete-dialog">Отмена</button>
+                    </div>
+                </dialog>
+
+                <p class="api-note">DummyJSON — тестовый API: изменения задач и авторов не сохраняются на сервере. Изменения авторов доступны до перезагрузки страницы; обновление списка задач сбрасывает изменения задач.</p>
 
                 <details class="api-reference">
                     <summary>Справка: HTTP-методы и коды ответа</summary>
@@ -395,7 +559,7 @@
                         <li><strong>400 Bad Request</strong> — неправильный запрос; <strong>401 Unauthorized</strong> — нет авторизации; <strong>403 Forbidden</strong> — доступ запрещён; <strong>404 Not Found</strong> — ресурс не найден; <strong>405 Method Not Allowed</strong> — HTTP-метод запрещён; <strong>429 Too Many Requests</strong> — слишком много запросов.</li>
                         <li><strong>500 Internal Server Error</strong> — ошибка сервера; <strong>502 Bad Gateway</strong> — ошибка при взаимодействии серверов; <strong>503 Service Unavailable</strong> — сервер временно недоступен.</li>
                     </ul>
-                    <p class="api-note">В Chrome откройте DevTools → Network → Fetch/XHR, затем выполните действия со списком. В колонке Method видны GET, POST, PATCH и DELETE. PATCH и DELETE отправляются и для новых задач; их ожидаемый ответ 404 обрабатывается локально. Для демонстрации успешного ответа используйте задачи, загруженные с сервера. PUT приведён для справки.</p>
+                    <p class="api-note">В Chrome откройте DevTools → Network → Fetch/XHR, затем выполните действия со списком. В колонке Method видны GET, POST, PATCH и DELETE. PATCH и DELETE отправляются и для новых задач и авторов; их ожидаемый ответ 404 обрабатывается локально. Для демонстрации успешного ответа используйте записи, загруженные с сервера. PUT приведён для справки.</p>
                 </details>
             </div>
         </section>

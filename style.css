@@ -1097,6 +1097,149 @@ body.light-theme .api-reference h3 {
     margin-bottom: 1rem;
 }
 
+.api-heading-actions,
+.api-author-actions,
+.api-author-card-actions,
+.api-profile-tasks-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.api-heading-actions > button {
+    min-height: 42px;
+}
+
+.api-author-actions {
+    margin-top: 0.65rem;
+}
+
+.api-profile-actions {
+    margin-bottom: 1.25rem;
+}
+
+.api-profile-tasks-heading {
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.api-profile-tasks-heading h3 {
+    margin: 0;
+}
+
+.api-authors-dialog,
+.api-author-editor-dialog {
+    width: min(800px, calc(100% - 2rem));
+}
+
+.api-authors-toolbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.api-authors-toolbar > .api-field {
+    flex: 1;
+}
+
+.api-authors-toolbar > button {
+    flex-shrink: 0;
+    min-height: 42px;
+}
+
+.content-block .api-authors-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.api-author-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem 1rem;
+    padding: 1rem 0;
+    border-top: 1px solid #334155;
+}
+
+.api-author-card:last-child {
+    border-bottom: 1px solid #334155;
+}
+
+.api-author-summary {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.api-author-summary > .api-user-avatar {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 10px;
+}
+
+.api-author-card-details {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.api-author-card-name {
+    color: #f8fafc;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.content-block .api-author-card-meta {
+    display: block;
+    color: #94a3b8;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    margin: 0.2rem 0 0;
+}
+
+.api-author-card-actions {
+    flex-shrink: 0;
+}
+
+.api-dialog .api-author-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.api-form-full {
+    grid-column: 1 / -1;
+}
+
+.content-block .api-form-note {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #94a3b8;
+}
+
+.api-dialog .api-form-section-title {
+    padding-top: 0.9rem;
+    margin: 0.25rem 0 0;
+    border-top: 1px solid #334155;
+    font-size: 0.95rem;
+}
+
+.content-block .api-delete-description {
+    margin-bottom: 1.25rem;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+#api-author-delete-confirm-btn {
+    padding: 0.6rem 0.9rem;
+    font-size: 0.9rem;
+}
+
 body.light-theme .api-dialog {
     background-color: #f8fafc;
     color: #0f172a;
@@ -1179,6 +1322,20 @@ body.light-theme .api-profile-field {
 
 body.light-theme .api-dialog h3 {
     color: #0284c7;
+}
+
+body.light-theme .api-author-card,
+body.light-theme .api-form-section-title {
+    border-color: #cbd5e1;
+}
+
+body.light-theme .api-author-card-name {
+    color: #0f172a;
+}
+
+body.light-theme .content-block .api-author-card-meta,
+body.light-theme .content-block .api-form-note {
+    color: #475569;
 }
 
 @media (max-width: 850px) {
@@ -1274,6 +1431,26 @@ body.light-theme .api-dialog h3 {
     .api-form-controls .api-input,
     .api-edit-form .api-input {
         flex-basis: 100%;
+    }
+
+    .api-dialog .api-author-form {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .api-authors-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .api-author-card-actions {
+        width: 100%;
+        padding-left: 3.5rem;
+    }
+
+    .api-heading-actions,
+    .api-profile-tasks-heading {
+        align-items: flex-start;
     }
 
     .api-row {

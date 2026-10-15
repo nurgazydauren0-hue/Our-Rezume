@@ -63,6 +63,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const userStatus = document.getElementById('api-user-status');
     const userError = document.getElementById('api-user-error');
     const userRetryButton = document.getElementById('api-user-retry-btn');
+    const authorsDialog = document.getElementById('api-authors-dialog');
+    const authorsList = document.getElementById('api-authors-list');
+    const authorsSearch = document.getElementById('api-authors-search-input');
+    const authorsError = document.getElementById('api-authors-error');
+    const authorEditorDialog = document.getElementById('api-author-editor-dialog');
+    const authorForm = document.getElementById('api-author-form');
+    const authorError = document.getElementById('api-author-error');
+    const authorSaveButton = document.getElementById('api-author-save-btn');
+    const authorDeleteDialog = document.getElementById('api-author-delete-dialog');
+    const authorDeleteError = document.getElementById('api-author-delete-error');
+    const authorDeleteButton = document.getElementById('api-author-delete-confirm-btn');
+    const assigneeAddButton = document.getElementById('api-assignee-add-btn');
+    const assigneeEditButton = document.getElementById('api-assignee-edit-btn');
+    const assigneeDeleteButton = document.getElementById('api-assignee-delete-btn');
+    const profileAddTaskButton = document.getElementById('api-profile-add-task-btn');
+    const profileEditUserButton = document.getElementById('api-profile-edit-user-btn');
+    const profileDeleteUserButton = document.getElementById('api-profile-delete-user-btn');
 
     let tasks = [];
     let mainTaskKeys = [];
@@ -76,9 +93,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let isAdding = false;
     let pendingRequests = 0;
     let localSequence = 0;
-    let editingKey = null;
-    let editDraft = '';
-    let editingContext = 'main';
+    let taskEditorKey = null;
+    let taskEditorContext = 'main';
+    let authorEditorId = null;
+    let deletingAuthorId = null;
+    let authorEditorVersion = 0;
+    let localUserSequence = 0;
+    let isAuthorLoading = false;
+    let isAuthorSaving = false;
+    let isAuthorDeleting = false;
     let mainLoadVersion = 0;
     let profileLoadVersion = 0;
     let dataGeneration = 0;
@@ -92,6 +115,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const users = new Map();
     const fullProfiles = new Set();
     const userTaskKeys = new Map();
+    const userChanges = new Map();
+    const deletedUserIds = new Set();
     // DummyJSON не хранит PATCH/DELETE: повторные чтения накладывают
     // сделанные изменения на ответ API. Только явное обновление сбрасывает их.
     const taskChanges = new Map();
@@ -106,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // fetch виден в DevTools → Network, в том числе для новых задач.
+    // fetch виден в DevTools → Network, в том числе для новых задач и авторов.
     // DummyJSON их не хранит: только их ожидаемый 404 разрешает локальное действие.
     async function request(path = '', { method = 'GET', body, isLocal = false, baseUrl = apiUrl } = {}) {
         const controller = new AbortController();
@@ -142,13 +167,32 @@ document.addEventListener('DOMContentLoaded', () => {
         sortSelect.disabled = pendingRequests > 0;
         resetFiltersButton.disabled = pendingRequests > 0;
         authorSelect.disabled = !usersLoaded || usersLoading;
-        addButton.disabled = isLoading || isAdding || !usersLoaded || usersLoading;
+        const authorBusy = isAuthorSaving || isAuthorDeleting;
+        addButton.disabled = isLoading || isAdding || !usersLoaded || usersLoading || authorBusy;
         addInput.disabled = isLoading || isAdding;
-        assigneeSelect.disabled = isAdding || !usersLoaded || usersLoading;
+        assigneeSelect.disabled = isAdding || !usersLoaded || usersLoading || authorBusy;
         completedInput.disabled = isAdding;
         addDialog.querySelectorAll('[data-close-dialog]').forEach(button => { button.disabled = isAdding; });
         usersRetryButton.disabled = usersLoading;
-        addButton.textContent = isAdding ? 'Добавление…' : 'Добавить задачу';
+        addButton.textContent = isAdding ? 'Сохранение…' : taskEditorKey ? 'Сохранить изменения' : 'Добавить задачу';
+        openAddButton.disabled = isLoading || pendingRequests > 0;
+        assigneeAddButton.disabled = isAdding || authorBusy || !usersLoaded;
+        assigneeEditButton.disabled = assigneeDeleteButton.disabled = isAdding || authorBusy
+            || !users.has(Number(assigneeSelect.value)) || pendingRequests > 0;
+        profileAddTaskButton.disabled = isLoading || pendingRequests > 0 || !usersLoaded;
+        profileEditUserButton.disabled = profileDeleteUserButton.disabled = pendingRequests > 0
+            || isProfileLoading || !usersLoaded || !users.has(activeUserId);
+        document.getElementById('api-profile-add-author-btn').disabled = pendingRequests > 0 || !usersLoaded;
+        document.getElementById('api-authors-add-btn').disabled = pendingRequests > 0 || !usersLoaded;
+        document.getElementById('api-authors-retry-btn').disabled = usersLoading;
+        authorForm.querySelectorAll('input, select, button').forEach(control => {
+            control.disabled = isAuthorLoading || isAuthorSaving;
+        });
+        authorEditorDialog.querySelectorAll('[data-close-dialog]').forEach(button => { button.disabled = isAuthorSaving; });
+        authorSaveButton.textContent = isAuthorLoading ? 'Загрузка…' : isAuthorSaving ? 'Сохранение…'
+            : authorEditorId === null ? 'Добавить автора' : 'Сохранить изменения';
+        authorDeleteDialog.querySelectorAll('button').forEach(button => { button.disabled = isAuthorDeleting; });
+        authorDeleteButton.textContent = isAuthorDeleting ? 'Удаление…' : 'Удалить автора';
         list.setAttribute('aria-busy', String(isLoading));
     }
 
@@ -172,6 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const key = `remote-${item.id}`;
             if (deletedKeys.has(key)) return;
             const value = { ...item, ...taskChanges.get(key), key, isLocal: false };
+            if (deletedUserIds.has(value.userId)) value.userId = null;
             const existing = tasks.find(task => task.key === key);
             if (existing) Object.assign(existing, value);
             else tasks.push(value);
@@ -208,6 +253,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function createUserChip(userId) {
+        if (userId === null || deletedUserIds.has(userId)) {
+            const text = document.createElement('span');
+            text.className = 'api-task-id';
+            text.textContent = 'Без исполнителя';
+            return text;
+        }
         const user = users.get(userId) || { id: userId };
         const handle = user.username ? `@${user.username}` : `Пользователь #${userId}`;
         const button = makeButton('', 'api-user-chip', `Открыть профиль ${handle}`, () => openUserProfile(userId));
@@ -224,10 +275,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedAuthor = authorFilter;
         const options = [...users.values()].sort((a, b) => fullName(a).localeCompare(fullName(b), ['ru', 'en']));
         assigneeSelect.replaceChildren();
+        const unassigned = document.createElement('option');
+        unassigned.value = '';
+        unassigned.textContent = taskEditorKey ? 'Без исполнителя' : 'Выберите исполнителя';
+        unassigned.disabled = !taskEditorKey;
+        assigneeSelect.appendChild(unassigned);
         const allAuthors = document.createElement('option');
         allAuthors.value = 'all';
         allAuthors.textContent = 'Все авторы';
         authorSelect.replaceChildren(allAuthors);
+        const withoutAuthor = document.createElement('option');
+        withoutAuthor.value = 'unassigned';
+        withoutAuthor.textContent = 'Без исполнителя';
+        authorSelect.appendChild(withoutAuthor);
         if (!usersLoaded) {
             const option = document.createElement('option');
             option.value = '';
@@ -241,9 +301,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 assigneeSelect.appendChild(option);
                 authorSelect.appendChild(option.cloneNode(true));
             });
-            if (users.has(Number(selected))) assigneeSelect.value = selected;
-            else if (users.has(1)) assigneeSelect.value = '1';
-            if (users.has(Number(selectedAuthor))) authorSelect.value = selectedAuthor;
+            assigneeSelect.value = users.has(Number(selected)) ? selected : '';
+            authorSelect.value = selectedAuthor === 'unassigned' || users.has(Number(selectedAuthor)) ? selectedAuthor : 'all';
+            authorFilter = authorSelect.value;
         }
     }
 
@@ -264,13 +324,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         && typeof user.username === 'string' && user.username.trim())) {
                     throw new Error('Некорректный список пользователей');
                 }
-                data.users.forEach(user => users.set(user.id, { ...users.get(user.id), ...user }));
+                data.users.forEach(mergeRemoteUser);
                 usersLoaded = true;
                 return true;
             } catch {
                 addError.textContent = 'Не удалось загрузить пользователей. Повторите загрузку для выбора исполнителя.';
                 addError.hidden = false;
                 usersRetryButton.hidden = false;
+                authorsError.textContent = 'Не удалось загрузить авторов. Повторите загрузку.';
+                authorsError.hidden = false;
                 return false;
             } finally {
                 usersLoading = false;
@@ -280,6 +342,135 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         })();
         return usersPromise;
+    }
+
+    function mergeRemoteUser(user) {
+        if (deletedUserIds.has(user.id)) return;
+        users.set(user.id, { ...users.get(user.id), ...user, ...userChanges.get(user.id) });
+    }
+
+    function renderAuthors() {
+        const query = authorsSearch.value.trim().toLocaleLowerCase();
+        const visible = [...users.values()]
+            .filter(user => `${fullName(user)} ${user.username}`.toLocaleLowerCase().includes(query))
+            .sort((a, b) => fullName(a).localeCompare(fullName(b), ['ru', 'en']));
+        authorsList.replaceChildren(...visible.map(user => {
+            const row = document.createElement('li');
+            row.className = 'api-author-card';
+            row.dataset.userId = user.id;
+            const summary = document.createElement('div');
+            summary.className = 'api-author-summary';
+            const details = document.createElement('div');
+            details.className = 'api-author-card-details';
+            const name = makeButton(fullName(user), 'api-user-chip api-author-card-name',
+                `Открыть профиль ${fullName(user)}`, () => openUserProfile(user.id));
+            const handle = document.createElement('span');
+            handle.className = 'api-author-card-meta';
+            handle.textContent = `@${user.username} · ID ${user.id}${user.isLocal ? ' · новый' : ''}`;
+            details.append(name, handle);
+            summary.append(createAvatar(user, 'api-user-avatar'), details);
+            const actions = document.createElement('div');
+            actions.className = 'api-author-card-actions';
+            const edit = makeButton('Изменить', 'api-edit-btn', `Изменить автора ${fullName(user)}`, () => openAuthorEditor(user.id));
+            const remove = makeButton('Удалить', 'api-delete-btn', `Удалить автора ${fullName(user)}`, () => openAuthorDelete(user.id));
+            edit.disabled = remove.disabled = pendingRequests > 0;
+            actions.append(edit, remove);
+            row.append(summary, actions);
+            return row;
+        }));
+        document.getElementById('api-authors-empty').hidden = visible.length > 0 || usersLoading;
+        document.getElementById('api-authors-status').textContent = usersLoading ? 'Загрузка авторов…'
+            : `Показано авторов: ${visible.length} из ${users.size}`;
+        document.getElementById('api-authors-retry-btn').hidden = usersLoaded || usersLoading;
+        if (usersLoaded) authorsError.hidden = true;
+    }
+
+    // Тестовый API повторяет ID при POST; локальный ID хранится отдельно от apiId.
+    function apiUserId(userId) {
+        return users.get(userId)?.apiId ?? userId;
+    }
+
+    function fillAuthorForm(user = {}) {
+        for (const input of authorForm.querySelectorAll('[name]')) {
+            input.setCustomValidity('');
+            let value = input.name.split('.').reduce((value, part) => value?.[part], user) ?? '';
+            if (input.type === 'date' && value) {
+                const parts = String(value).split('-');
+                if (parts.length === 3) value = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            }
+            if (input.tagName === 'SELECT' && ![...input.options].some(option => option.value === String(value))) {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                input.appendChild(option);
+            }
+            input.value = value;
+        }
+    }
+
+    async function openAuthorEditor(userId = null) {
+        if (pendingRequests > 0 || !usersLoaded || (userId !== null && !users.has(userId))) return;
+        authorEditorId = userId;
+        const version = ++authorEditorVersion;
+        authorError.hidden = true;
+        authorForm.reset();
+        fillAuthorForm(userId === null ? {} : users.get(userId));
+        document.getElementById('api-author-editor-title').textContent = userId === null ? 'Новый автор' : 'Изменить автора';
+        if (!authorEditorDialog.open) authorEditorDialog.showModal();
+        isAuthorLoading = userId !== null && !fullProfiles.has(userId);
+        updateControls();
+        if (isAuthorLoading) {
+            try {
+                const user = await request(`/${apiUserId(userId)}`, { baseUrl: usersUrl });
+                if (version !== authorEditorVersion || !authorEditorDialog.open) return;
+                if (user?.id !== userId || typeof user.username !== 'string') throw new Error('Некорректный профиль');
+                mergeRemoteUser(user);
+                fullProfiles.add(userId);
+                fillAuthorForm(users.get(userId));
+                renderAssignees();
+                renderTasks();
+            } catch {
+                if (version !== authorEditorVersion || !authorEditorDialog.open) return;
+                authorError.textContent = 'Полный профиль не загружен. Закройте окно и повторите изменение автора.';
+                authorError.hidden = false;
+                // Не отправляем пустые значения вместо ещё не загруженных полей.
+                return;
+            } finally {
+                if (version === authorEditorVersion && authorError.hidden) isAuthorLoading = false;
+                updateControls();
+            }
+        }
+        if (version === authorEditorVersion) authorForm.elements.namedItem('firstName').focus();
+    }
+
+    function openAuthorDelete(userId) {
+        if (pendingRequests > 0 || !users.has(userId)) return;
+        deletingAuthorId = userId;
+        document.getElementById('api-author-delete-name').textContent = fullName(users.get(userId));
+        authorDeleteError.hidden = true;
+        if (!authorDeleteDialog.open) authorDeleteDialog.showModal();
+        updateControls();
+    }
+
+    function openTaskEditor(key = null, context = 'main', userId = null) {
+        if (isLoading || pendingRequests > 0) return;
+        const task = key === null ? null : tasks.find(item => item.key === key);
+        if (key !== null && !task) return;
+        taskEditorKey = key;
+        taskEditorContext = context;
+        addForm.reset();
+        renderAssignees();
+        addError.hidden = true;
+        document.getElementById('api-add-title').textContent = task ? 'Изменить задачу' : 'Новая задача';
+        addDialog.querySelector('.api-dialog-close').setAttribute('aria-label', 'Закрыть форму задачи');
+        addInput.value = task?.todo || '';
+        completedInput.value = String(task?.completed ?? (filter === 'completed'));
+        const selectedId = task ? task.userId : userId ?? (users.has(Number(authorFilter)) ? Number(authorFilter) : null);
+        assigneeSelect.value = users.has(selectedId) ? String(selectedId) : task ? '' : String(users.keys().next().value ?? '');
+        if (!addDialog.open) addDialog.showModal();
+        if (!usersLoaded) loadUsers();
+        updateControls();
+        addInput.focus();
     }
 
     function renderUserDetails() {
@@ -322,10 +513,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function openUserProfile(userId, force = false) {
-        if (!Number.isInteger(userId) || userId < 1) return;
+        if (!Number.isInteger(userId) || userId < 1 || deletedUserIds.has(userId)) return;
         activeUserId = userId;
-        editingKey = null;
-        editDraft = '';
         if (!userDialog.open) {
             profileReturnKey = document.activeElement?.closest('.api-row')?.dataset.taskKey || null;
             userDialog.showModal();
@@ -334,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
         userRetryButton.hidden = true;
         const version = ++profileLoadVersion;
         const generation = dataGeneration;
-        if (!force && fullProfiles.has(userId) && userTaskKeys.has(userId)) {
+        if (users.get(userId)?.isLocal || (!force && fullProfiles.has(userId) && userTaskKeys.has(userId))) {
             isProfileLoading = false;
             userStatus.textContent = 'Профиль загружен';
             renderTasks();
@@ -352,7 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const profile = results[0];
         if (profile.status === 'fulfilled' && profile.value?.id === userId
             && typeof profile.value.username === 'string') {
-            users.set(userId, { ...users.get(userId), ...profile.value });
+            mergeRemoteUser(profile.value);
             fullProfiles.add(userId);
         } else errors.push('Не удалось загрузить сведения о пользователе.');
         const response = results[1];
@@ -369,7 +558,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function createTaskRow(task, context = 'main') {
-        const busy = isLoading || pendingKeys.has(task.key);
+        const busy = isLoading || pendingKeys.has(task.key) || isAuthorSaving || isAuthorDeleting || isAdding;
         const row = document.createElement('li');
         row.className = 'api-row';
         row.classList.toggle('is-completed', task.completed);
@@ -387,42 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body.className = 'api-task-body';
         row.append(checkbox, body);
 
-        if (editingKey === task.key && editingContext === context) {
-            row.classList.add('is-editing');
-            const editor = document.createElement('form');
-            editor.className = 'api-edit-form';
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.className = 'api-input';
-            input.value = editDraft;
-            input.disabled = busy;
-            input.setAttribute('aria-label', 'Новый текст задачи');
-            input.addEventListener('input', () => { editDraft = input.value; });
-            const save = document.createElement('button');
-            save.type = 'submit';
-            save.className = 'demo-btn api-save-btn';
-            save.textContent = 'Сохранить';
-            save.disabled = busy;
-            const cancel = makeButton('Отмена', 'api-cancel-btn', 'Отменить редактирование', () => {
-                editingKey = null;
-                editDraft = '';
-                showError();
-                renderTasks();
-            });
-            cancel.disabled = busy;
-            editor.append(input, save, cancel);
-            editor.addEventListener('submit', event => {
-                event.preventDefault();
-                const value = editDraft.trim();
-                if (!value) {
-                    showError('Введите текст задачи');
-                    input.focus();
-                    return;
-                }
-                updateTask(task.key, { todo: value });
-            });
-            body.appendChild(editor);
-        } else {
+        {
             const label = document.createElement('label');
             label.className = 'api-todo-label';
             label.htmlFor = checkbox.id;
@@ -434,15 +588,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const actions = document.createElement('div');
             actions.className = 'api-row-actions';
             const edit = makeButton('Изменить', 'api-icon-btn api-edit-btn', `Редактировать задачу: ${task.todo}`, () => {
-                editingKey = task.key;
-                editingContext = context;
-                editDraft = task.todo;
                 showError();
-                renderTasks();
-                const container = context === 'profile' ? userList : list;
-                const input = container.querySelector('.api-edit-form input');
-                input.focus();
-                input.select();
+                openTaskEditor(task.key, context);
             });
             const remove = makeButton('Удалить', 'api-icon-btn api-delete-btn', `Удалить задачу: ${task.todo}`, () => deleteTask(task.key));
             edit.disabled = busy;
@@ -468,12 +615,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderTasks() {
-        const focused = document.activeElement;
-        const selection = apiTab.contains(focused) && focused.matches('.api-edit-form input')
-            ? { key: focused.closest('.api-row').dataset.taskKey,
-                context: focused.closest('.api-row').dataset.context,
-                start: focused.selectionStart, end: focused.selectionEnd }
-            : null;
         const mainTasks = tasksForKeys(mainTaskKeys);
         const completed = mainTasks.filter(task => task.completed).length;
         document.getElementById('api-total-count').textContent = mainTasks.length;
@@ -487,7 +628,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const visible = sortedTasks(mainTasks.filter(task => (filter === 'all'
             || (filter === 'completed' ? task.completed : !task.completed))
             && task.todo.toLocaleLowerCase().includes(searchQuery)
-            && (authorFilter === 'all' || task.userId === Number(authorFilter))));
+            && (authorFilter === 'all' || (authorFilter === 'unassigned'
+                ? task.userId === null : task.userId === Number(authorFilter)))));
         document.getElementById('api-list-title').textContent = filter === 'completed'
             ? 'Выполненные задачи' : filter === 'pending' ? 'Невыполненные задачи' : 'Все задачи';
         document.getElementById('api-visible-count').textContent = `${visible.length} / ${mainTasks.length}`;
@@ -512,14 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
             userList.setAttribute('aria-busy', String(isProfileLoading));
             document.getElementById('api-user-empty').hidden = assigned.length > 0 || isProfileLoading;
         }
-        if (selection) {
-            const container = selection.context === 'profile' ? userList : list;
-            const input = container.querySelector('.api-edit-form input');
-            if (input && !input.disabled && input.closest('.api-row').dataset.taskKey === selection.key) {
-                input.focus({ preventScroll: true });
-                input.setSelectionRange(selection.start, selection.end);
-            }
-        }
+        if (authorsDialog.open) renderAuthors();
         updateControls();
     }
 
@@ -552,8 +687,6 @@ document.addEventListener('DOMContentLoaded', () => {
             mainTaskKeys = [...localKeys, ...mergeRemoteTasks(data.todos)];
             appliedSort = requestedSort;
             hasLoaded = true;
-            editingKey = null;
-            editDraft = '';
             statusMessage.textContent = `Загружено задач: ${mainTaskKeys.length}`;
         } catch {
             if (version !== mainLoadVersion) return;
@@ -573,7 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function updateTask(key, changes) {
         const task = tasks.find(item => item.key === key);
-        if (!task || isLoading || pendingKeys.has(key)) return;
+        if (!task || isLoading || pendingKeys.has(key) || isAuthorSaving || isAuthorDeleting) return false;
         pendingKeys.add(key);
         pendingRequests++;
         showError();
@@ -581,20 +714,20 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Всегда отправляем PATCH. Только ожидаемый 404 новой задачи
             // обрабатывается в request() локально; остальные ошибки не скрываем.
-            await request(`/${task.id}`, { method: 'PATCH', body: changes, isLocal: task.isLocal });
+            const body = { ...changes };
+            if ('userId' in body) body.userId = apiUserId(body.userId);
+            await request(`/${task.id}`, { method: 'PATCH', body, isLocal: task.isLocal });
             // DummyJSON не хранит предыдущие PATCH: применяем только отправленные
             // поля, чтобы редактирование текста не отменяло изменение checkbox.
             Object.assign(task, changes);
             if (!task.isLocal) taskChanges.set(key, { ...taskChanges.get(key), ...changes });
-            if ('todo' in changes && editingKey === key) {
-                editingKey = null;
-                editDraft = '';
-            }
             statusMessage.textContent = task.isLocal
                 ? 'Запрос отправлен; изменения сохранены локально' : 'Изменения сохранены';
             if (userDialog.open) userStatus.textContent = statusMessage.textContent;
+            return true;
         } catch {
             showError('Не удалось изменить задачу. Попробуйте ещё раз.');
+            return false;
         } finally {
             pendingKeys.delete(key);
             pendingRequests--;
@@ -604,7 +737,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function deleteTask(key) {
         const task = tasks.find(item => item.key === key);
-        if (!task || isLoading || pendingKeys.has(key)) return;
+        if (!task || isLoading || pendingKeys.has(key) || isAuthorSaving || isAuthorDeleting || isAdding) return;
         pendingKeys.add(key);
         pendingRequests++;
         showError();
@@ -616,7 +749,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!task.isLocal) deletedKeys.add(key);
             tasks = tasks.filter(item => item.key !== key);
             mainTaskKeys = mainTaskKeys.filter(item => item !== key);
-            if (editingKey === key) editingKey = null;
             statusMessage.textContent = task.isLocal
                 ? 'Запрос отправлен; задача удалена локально' : 'Задача удалена';
             if (userDialog.open) userStatus.textContent = statusMessage.textContent;
@@ -631,34 +763,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     addForm.addEventListener('submit', async event => {
         event.preventDefault();
-        if (isLoading || isAdding || !usersLoaded || usersLoading) return;
+        if (isLoading || isAdding || !usersLoaded || usersLoading || isAuthorSaving || isAuthorDeleting) return;
         const text = addInput.value.trim();
-        const userId = Number(assigneeSelect.value);
+        const userId = assigneeSelect.value ? Number(assigneeSelect.value) : null;
         if (!text) {
             addError.textContent = 'Введите текст новой задачи';
             addError.hidden = false;
             addInput.focus();
             return;
         }
-        if (!users.has(userId)) {
+        if (!users.has(userId) && !(taskEditorKey && userId === null)) {
             addError.textContent = 'Выберите исполнителя задачи';
             addError.hidden = false;
             assigneeSelect.focus();
             return;
         }
         isAdding = true;
-        pendingRequests++;
         showError();
         addError.hidden = true;
+        renderTasks();
+        if (taskEditorKey) {
+            try {
+                const saved = await updateTask(taskEditorKey, { todo: text, userId, completed: completedInput.value === 'true' });
+                if (saved) addDialog.close();
+                else {
+                    addError.textContent = 'Не удалось изменить задачу. Попробуйте ещё раз.';
+                    addError.hidden = false;
+                }
+            } finally {
+                isAdding = false;
+                renderTasks();
+                if (addDialog.open) addInput.focus();
+            }
+            return;
+        }
+        pendingRequests++;
         updateControls();
         try {
             const data = await request('/add', {
-                method: 'POST', body: { todo: text, completed: completedInput.value === 'true', userId }
+                method: 'POST', body: { todo: text, completed: completedInput.value === 'true', userId: apiUserId(userId) }
             });
             if (!isValidTask(data)) throw new Error('Некорректный ответ API');
             // POST может повторять серверный ID. Уникальный key отличает такие
             // задачи друг от друга; isLocal отмечает задачу, которой нет на сервере.
-            const task = { ...data, key: `local-${++localSequence}`, isLocal: true };
+            const task = { ...data, todo: text, userId, completed: completedInput.value === 'true',
+                key: `local-${++localSequence}`, isLocal: true };
             tasks.unshift(task);
             mainTaskKeys.unshift(task.key);
             addForm.reset();
@@ -668,6 +817,7 @@ document.addEventListener('DOMContentLoaded', () => {
             searchQuery = '';
             searchInput.value = '';
             statusMessage.textContent = 'Задача добавлена';
+            if (userDialog.open) userStatus.textContent = 'Задача добавлена';
             addDialog.close();
         } catch {
             addError.textContent = 'Не удалось добавить задачу. Попробуйте ещё раз.';
@@ -677,6 +827,107 @@ document.addEventListener('DOMContentLoaded', () => {
             pendingRequests--;
             renderTasks();
             if (addDialog.open) addInput.focus();
+        }
+    });
+
+    authorForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (isAuthorLoading || isAuthorSaving || pendingRequests > 0) return;
+        const changes = {};
+        for (const input of authorForm.querySelectorAll('[name]')) {
+            const value = input.value.trim();
+            input.setCustomValidity('');
+            if (input.required && !value) {
+                input.setCustomValidity('Заполните это поле');
+                input.reportValidity();
+                return;
+            }
+            const parts = input.name.split('.');
+            const target = parts.length === 1 ? changes : (changes[parts[0]] ||= { ...users.get(authorEditorId)?.[parts[0]] });
+            target[parts.at(-1)] = input.type === 'number' ? value === '' ? null : Number(value) : value;
+        }
+        changes.username = changes.username.replace(/^@+/, '');
+        if (!changes.username || /\s/.test(changes.username)) {
+            authorError.textContent = 'Укажите username без пробелов.';
+            authorError.hidden = false;
+            return;
+        }
+        if ([...users.values()].some(user => user.id !== authorEditorId
+            && user.username.toLocaleLowerCase() === changes.username.toLocaleLowerCase())) {
+            authorError.textContent = 'Этот username уже занят другим автором.';
+            authorError.hidden = false;
+            return;
+        }
+        isAuthorSaving = true;
+        pendingRequests++;
+        authorError.hidden = true;
+        renderTasks();
+        try {
+            const existing = users.get(authorEditorId);
+            const data = await request(existing ? `/${apiUserId(existing.id)}` : '/add', {
+                baseUrl: usersUrl, method: existing ? 'PATCH' : 'POST', body: changes, isLocal: existing?.isLocal
+            });
+            let savedId = authorEditorId;
+            if (existing) {
+                users.set(savedId, { ...existing, ...changes });
+                if (!existing.isLocal) userChanges.set(savedId, { ...userChanges.get(savedId), ...changes });
+            } else {
+                if (!Number.isInteger(data?.id) || data.id < 1) throw new Error('Некорректный ответ API');
+                localUserSequence = Math.max(localUserSequence + 1, data.id, ...users.keys(), ...deletedUserIds);
+                while (users.has(localUserSequence) || deletedUserIds.has(localUserSequence)) localUserSequence++;
+                savedId = localUserSequence;
+                users.set(savedId, { ...changes, id: savedId, apiId: data.id, isLocal: true });
+                userTaskKeys.set(savedId, []);
+            }
+            fullProfiles.add(savedId);
+            renderAssignees();
+            if (addDialog.open) assigneeSelect.value = String(savedId);
+            const message = existing ? 'Автор изменён' : 'Автор добавлен';
+            statusMessage.textContent = message;
+            userStatus.textContent = message;
+            authorEditorDialog.close();
+        } catch {
+            authorError.textContent = 'Не удалось сохранить автора. Попробуйте ещё раз.';
+            authorError.hidden = false;
+        } finally {
+            isAuthorSaving = false;
+            pendingRequests--;
+            renderTasks();
+        }
+    });
+    authorForm.addEventListener('input', event => { event.target.setCustomValidity?.(''); });
+
+    authorDeleteButton.addEventListener('click', async () => {
+        const user = users.get(deletingAuthorId);
+        if (!user || pendingRequests > 0) return;
+        isAuthorDeleting = true;
+        pendingRequests++;
+        authorDeleteError.hidden = true;
+        renderTasks();
+        try {
+            await request(`/${apiUserId(user.id)}`, { baseUrl: usersUrl, method: 'DELETE', isLocal: user.isLocal });
+            deletedUserIds.add(user.id);
+            users.delete(user.id);
+            fullProfiles.delete(user.id);
+            userTaskKeys.delete(user.id);
+            userChanges.delete(user.id);
+            // Удаление автора не удаляет задачи. Накладка применяется и к будущим GET.
+            tasks.filter(task => task.userId === user.id).forEach(task => {
+                task.userId = null;
+                if (!task.isLocal) taskChanges.set(task.key, { ...taskChanges.get(task.key), userId: null });
+            });
+            if (authorFilter === String(user.id)) authorFilter = 'all';
+            renderAssignees();
+            if (activeUserId === user.id) userDialog.close();
+            statusMessage.textContent = 'Автор удалён. Его задачи сохранены без исполнителя.';
+            authorDeleteDialog.close();
+        } catch {
+            authorDeleteError.textContent = 'Не удалось удалить автора. Попробуйте ещё раз.';
+            authorDeleteError.hidden = false;
+        } finally {
+            isAuthorDeleting = false;
+            pendingRequests--;
+            renderTasks();
         }
     });
 
@@ -710,34 +961,72 @@ document.addEventListener('DOMContentLoaded', () => {
         if (needsReload) loadTasks();
         else renderTasks();
     });
-    openAddButton.addEventListener('click', () => {
-        if (!addDialog.open) addDialog.showModal();
+    openAddButton.addEventListener('click', () => openTaskEditor());
+    profileAddTaskButton.addEventListener('click', () => openTaskEditor(null, 'profile', activeUserId));
+    assigneeSelect.addEventListener('change', updateControls);
+    assigneeAddButton.addEventListener('click', () => openAuthorEditor());
+    assigneeEditButton.addEventListener('click', () => openAuthorEditor(Number(assigneeSelect.value)));
+    assigneeDeleteButton.addEventListener('click', () => openAuthorDelete(Number(assigneeSelect.value)));
+    profileEditUserButton.addEventListener('click', () => openAuthorEditor(activeUserId));
+    profileDeleteUserButton.addEventListener('click', () => openAuthorDelete(activeUserId));
+    document.getElementById('api-profile-add-author-btn').addEventListener('click', () => openAuthorEditor());
+    document.getElementById('api-authors-add-btn').addEventListener('click', () => openAuthorEditor());
+    document.getElementById('api-open-authors-btn').addEventListener('click', () => {
+        if (!authorsDialog.open) authorsDialog.showModal();
         if (!usersLoaded) loadUsers();
-        else addError.hidden = true;
-        addInput.focus();
+        renderAuthors();
+        updateControls();
+        authorsSearch.focus();
     });
+    authorsSearch.addEventListener('input', renderAuthors);
+    document.getElementById('api-authors-retry-btn').addEventListener('click', loadUsers);
     apiTab.querySelectorAll('[data-close-dialog]').forEach(button => {
         button.addEventListener('click', () => {
             const dialog = document.getElementById(button.dataset.closeDialog);
             if (dialog === addDialog && isAdding) return;
+            if (dialog === authorEditorDialog && isAuthorSaving) return;
+            if (dialog === authorDeleteDialog && isAuthorDeleting) return;
             dialog.close();
         });
     });
     addDialog.addEventListener('cancel', event => { if (isAdding) event.preventDefault(); });
+    authorEditorDialog.addEventListener('cancel', event => { if (isAuthorSaving) event.preventDefault(); });
+    authorDeleteDialog.addEventListener('cancel', event => { if (isAuthorDeleting) event.preventDefault(); });
+    function focusParentDialog(fallback = openAddButton) {
+        const parent = addDialog.open ? assigneeSelect : userDialog.open ? profileEditUserButton
+            : authorsDialog.open ? authorsSearch : fallback;
+        parent?.focus({ preventScroll: true });
+    }
+    addDialog.addEventListener('close', () => {
+        const key = taskEditorKey;
+        const context = taskEditorContext;
+        taskEditorKey = null;
+        const container = context === 'profile' && userDialog.open ? userList : list;
+        const trigger = key ? container.querySelector(`[data-task-key="${key}"] .api-edit-btn`) : null;
+        if (userDialog.open) (trigger || profileAddTaskButton).focus({ preventScroll: true });
+        else focusParentDialog(trigger || openAddButton);
+    });
+    authorEditorDialog.addEventListener('close', () => {
+        authorEditorVersion++;
+        isAuthorLoading = false;
+        authorEditorId = null;
+        updateControls();
+        focusParentDialog();
+    });
+    authorDeleteDialog.addEventListener('close', () => {
+        deletingAuthorId = null;
+        focusParentDialog();
+    });
     userDialog.addEventListener('close', () => {
         profileLoadVersion++;
         isProfileLoading = false;
         activeUserId = null;
-        if (editingContext === 'profile') {
-            editingKey = null;
-            editDraft = '';
-        }
         renderTasks();
         // Строки перерисовываются, поэтому возвращаем фокус на новую кнопку
         // того же исполнителя вместо уже удалённого элемента DOM.
         const trigger = profileReturnKey
             ? list.querySelector(`[data-task-key="${profileReturnKey}"] .api-user-chip`) : null;
-        (trigger || openAddButton).focus({ preventScroll: true });
+        focusParentDialog(trigger || openAddButton);
         profileReturnKey = null;
     });
     usersRetryButton.addEventListener('click', loadUsers);
